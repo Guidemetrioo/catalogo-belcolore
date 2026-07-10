@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, X, MessageCircle, ChevronLeft, ChevronRight, Grid, ArrowUp } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp } from 'lucide-react';
 import productsData from './data/products.json';
 import categoryCoversData from './data/category_covers.json';
 
@@ -239,13 +239,6 @@ function App() {
     setVisibleCount(24);
   };
 
-  // Open WhatsApp with pre-filled product inquiry message
-  const handleWhatsAppContact = (product) => {
-    const phoneNumber = "5511999999999"; // Generic placeholder number
-    const message = `Olá! Gostaria de consultar mais informações sobre o produto *${product.name}* (Categoria: *${product.category}*) do catálogo Bel Colore.`;
-    const url = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
-  };
 
   // Check if we are searching (searching forces grid view of products across all categories)
   const isSearching = searchQuery.length > 0;
