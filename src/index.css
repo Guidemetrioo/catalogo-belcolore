@@ -4,9 +4,9 @@
   --bg-secondary: #faf9f6;
   --text-primary: #1a1c1c;
   --text-secondary: #8c837a;
-  --accent-gold: #c0996b;
-  --accent-gold-hover: #a37c4e;
-  --accent-secondary: #0c4c7d; /* Brand secondary color from logo */
+  --accent-gold: #cd9b62;       /* Exact Gold from Logo */
+  --accent-gold-hover: #b0814c; /* Hover Gold */
+  --accent-secondary: #a37c4e;  /* Secondary Gold/Sand tone */
   --border-hairline: #eae5df;
   --font-display: 'Playfair Display', serif;
   --font-body: 'DM Sans', sans-serif;
@@ -92,7 +92,7 @@ body {
   outline: none;
   border-color: var(--accent-secondary);
   background-color: var(--bg-primary);
-  box-shadow: 0 0 0 4px rgba(12, 76, 125, 0.08);
+  box-shadow: 0 0 0 4px rgba(205, 155, 98, 0.08);
 }
 
 .search-icon {
@@ -408,7 +408,7 @@ body {
   background-color: var(--accent-secondary);
   color: var(--bg-primary);
   border-color: var(--accent-secondary);
-  box-shadow: 0 6px 20px rgba(12, 76, 125, 0.25);
+  box-shadow: 0 6px 20px rgba(205, 155, 98, 0.25);
 }
 
 .carousel-arrow:active {
@@ -644,7 +644,7 @@ body {
   border-color: var(--accent-secondary);
   color: var(--bg-primary);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(12, 76, 125, 0.15);
+  box-shadow: 0 4px 12px rgba(205, 155, 98, 0.15);
 }
 
 /* Animations */
