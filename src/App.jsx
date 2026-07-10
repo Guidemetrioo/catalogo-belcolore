@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, X, MessageCircle, ChevronLeft, ChevronRight, Grid } from 'lucide-react';
+import { Search, X, MessageCircle, ChevronLeft, ChevronRight, Grid, ArrowUp } from 'lucide-react';
 import productsData from './data/products.json';
 import categoryCoversData from './data/category_covers.json';
 
@@ -9,6 +9,30 @@ function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [visibleCount, setVisibleCount] = useState(24);
   const [isCategoryHovered, setIsCategoryHovered] = useState(false);
+
+  // Scroll to Top visibility state
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
+
+  // Monitor window scroll to show/hide the scroll-to-top button
+  useEffect(() => {
+    const handleScrollVisibility = () => {
+      if (window.scrollY > 300) {
+        setShowScrollToTop(true);
+      } else {
+        setShowScrollToTop(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScrollVisibility);
+    return () => window.removeEventListener('scroll', handleScrollVisibility);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   // Carousel active image state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -480,6 +504,17 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Scroll to Top Button */}
+      {showScrollToTop && (
+        <button 
+          className="scroll-to-top-btn" 
+          onClick={scrollToTop}
+          aria-label="Voltar ao topo"
+        >
+          <ArrowUp size={20} />
+        </button>
       )}
 
       {/* Footer */}
