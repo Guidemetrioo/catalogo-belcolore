@@ -1,7 +1,7 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, UploadCloud, Download, Trash2, Plus, ArrowLeft } from 'lucide-react';
 import productsData from './data/products.json';
 import categoryCoversData from './data/category_covers.json';
+import { useState, useMemo, useRef, useEffect } from 'react';
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -34,6 +34,21 @@ function App() {
     });
   };
 
+  // Database local state
+  const [productsList, setProductsList] = useState(productsData);
+
+  // Admin View State
+  const [isAdminMode, setIsAdminMode] = useState(false);
+
+  // Admin Form States
+  const [newProductName, setNewProductName] = useState('');
+  const [newProductCategory, setNewProductCategory] = useState('');
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryName, setCustomCategoryName] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFileUrl, setSelectedFileUrl] = useState('');
+  const [sessionAddedProducts, setSessionAddedProducts] = useState([]);
+
   // Carousel active image state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -44,7 +59,7 @@ function App() {
   // Group products with the same base name
   const groupedProducts = useMemo(() => {
     const groups = {};
-    productsData.forEach(p => {
+    productsList.forEach(p => {
       // Strip trailing numeric suffix like " 01", "-01", " - 01", " 1", "-1"
       const baseName = p.name.replace(/[- ]+\d+$/i, '').trim();
       
@@ -65,7 +80,7 @@ function App() {
       }
     });
     return Object.values(groups);
-  }, []);
+  }, [productsList]);
 
   // Extract unique categories dynamically
   const categories = useMemo(() => {
@@ -134,6 +149,90 @@ function App() {
     if (isRightSwipe && selectedProduct.images.length > 1) {
       setActiveImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1));
     }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setSelectedFileUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleAddProduct = (e) => {
+    e.preventDefault();
+    if (!newProductName) {
+      alert("Por favor, digite o nome do produto.");
+      return;
+    }
+
+    const category = isCustomCategory ? customCategoryName.trim() : newProductCategory;
+    if (!category) {
+      alert("Por favor, selecione ou digite uma categoria.");
+      return;
+    }
+
+    const filename = selectedFile ? selectedFile.name : `${newProductName}.webp`;
+    const cleanImagePath = `/assets/catalog/${category}/${filename}`;
+
+    const newProduct = {
+      id: String(productsList.length + 100000 + Date.now()),
+      name: newProductName.trim(),
+      category: category.trim(),
+      image: selectedFileUrl || cleanImagePath
+    };
+
+    setProductsList(prev => [newProduct, ...prev]);
+
+    setSessionAddedProducts(prev => [
+      {
+        ...newProduct,
+        originalFilename: filename,
+        imagePathForJson: cleanImagePath
+      },
+      ...prev
+    ]);
+
+    setNewProductName('');
+    setSelectedFile(null);
+    setSelectedFileUrl('');
+    
+    alert(`Produto "${newProduct.name}" adicionado com sucesso!`);
+  };
+
+  const handleDeleteProduct = (id) => {
+    setProductsList(prev => prev.filter(p => p.id !== id));
+    setSessionAddedProducts(prev => prev.filter(p => p.id !== id));
+  };
+
+  const handleDownloadJson = () => {
+    const exportData = productsList.map(p => {
+      const sessionItem = sessionAddedProducts.find(s => s.id === p.id);
+      return {
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        image: sessionItem ? sessionItem.imagePathForJson : p.image
+      };
+    });
+
+    exportData.sort((a, b) => {
+      const catCompare = a.category.localeCompare(b.category);
+      if (catCompare !== 0) return catCompare;
+      return a.name.localeCompare(b.name);
+    });
+
+    exportData.forEach((p, idx) => {
+      p.id = String(idx + 1);
+    });
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", "products.json");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
   };
 
   const sliderRef = useRef(null);
@@ -252,43 +351,57 @@ function App() {
             <img src="/assets/logo.png" alt="Bel Colore" className="logo-image" />
           </div>
           
-          <div className="search-wrapper">
-            <Search className="search-icon" size={18} />
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Buscar móvel ou categoria..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setVisibleCount(24);
-                // When starting to search, clear selected category if any,
-                // so the user searches across the entire catalog
-                if (selectedCategory && e.target.value) {
-                  setSelectedCategory(null);
-                }
-              }}
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => {
-                  setSearchQuery('');
+          <div className="header-actions">
+            <div className="search-wrapper">
+              <Search className="search-icon" size={18} />
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Buscar móvel ou categoria..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
                   setVisibleCount(24);
+                  // When starting to search, clear selected category if any,
+                  // so the user searches across the entire catalog
+                  if (selectedCategory && e.target.value) {
+                    setSelectedCategory(null);
+                  }
                 }}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#8c837a'
-                }}
-              >
-                <X size={16} />
-              </button>
-            )}
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => {
+                    setSearchQuery('');
+                    setVisibleCount(24);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#8c837a'
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            <button 
+              className={`admin-toggle-btn ${isAdminMode ? 'active' : ''}`}
+              onClick={() => {
+                setIsAdminMode(!isAdminMode);
+                setSelectedCategory(null);
+                setSearchQuery('');
+              }}
+              title={isAdminMode ? "Voltar ao Catálogo" : "Área do Administrador"}
+            >
+              <Settings size={20} />
+            </button>
           </div>
         </div>
       </header>
@@ -297,10 +410,174 @@ function App() {
       <div className="main-layout">
         {/* Catalog Content Area */}
         <main className="catalog-content">
-          {/* Header title for landing state */}
-          {selectedCategory === null && !isSearching && (
-            <h2 className="categories-landing-title">Categorias</h2>
-          )}
+          {isAdminMode ? (
+            /* Admin Panel View */
+            <div className="admin-panel">
+              <div className="admin-header-row">
+                <button className="admin-back-btn" onClick={() => setIsAdminMode(false)}>
+                  <ArrowLeft size={18} />
+                  <span>Voltar ao Catálogo</span>
+                </button>
+                <div>
+                  <h2 className="admin-title">Painel Administrativo</h2>
+                  <p className="admin-subtitle">Adicione fotos e gerencie novos produtos no catálogo.</p>
+                </div>
+              </div>
+
+              <div className="admin-grid">
+                {/* Form Column */}
+                <div className="admin-card form-section">
+                  <h3 className="card-title">Nova Foto / Item</h3>
+                  <form onSubmit={handleAddProduct} className="admin-form">
+                    <div className="form-group">
+                      <label htmlFor="prod-name">Nome do Produto</label>
+                      <input 
+                        type="text" 
+                        id="prod-name"
+                        placeholder="Ex: Agda Cadeira Am 08"
+                        value={newProductName}
+                        onChange={(e) => setNewProductName(e.target.value)}
+                        required
+                      />
+                      <small className="form-hint">
+                        Use o mesmo nome base (ex: "Agda Cadeira Am") com a numeração correspondente para agrupar no carrossel automaticamente.
+                      </small>
+                    </div>
+
+                    <div className="form-group">
+                      <div className="label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                        <label style={{ marginBottom: 0 }}>Categoria</label>
+                        <button 
+                          type="button" 
+                          className="toggle-custom-cat"
+                          onClick={() => setIsCustomCategory(!isCustomCategory)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--accent-gold)',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: '600'
+                          }}
+                        >
+                          {isCustomCategory ? "Selecionar Existente" : "Criar Nova Categoria"}
+                        </button>
+                      </div>
+
+                      {isCustomCategory ? (
+                        <input 
+                          type="text"
+                          placeholder="Digite a nova categoria..."
+                          value={customCategoryName}
+                          onChange={(e) => setCustomCategoryName(e.target.value)}
+                          required
+                        />
+                      ) : (
+                        <select 
+                          value={newProductCategory}
+                          onChange={(e) => setNewProductCategory(e.target.value)}
+                          required
+                        >
+                          <option value="">-- Selecione uma Categoria --</option>
+                          {categories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    <div className="form-group">
+                      <label>Foto do Produto</label>
+                      <div className="file-dropzone">
+                        <input 
+                          type="file" 
+                          id="file-input" 
+                          accept="image/*" 
+                          onChange={handleFileChange}
+                          required
+                        />
+                        <label htmlFor="file-input" className="dropzone-label">
+                          <UploadCloud size={24} className="upload-icon" />
+                          <span>{selectedFile ? selectedFile.name : "Clique para escolher a imagem"}</span>
+                        </label>
+                      </div>
+                      
+                      {selectedFileUrl && (
+                        <div className="image-preview-container">
+                          <span className="preview-label">Visualização Prévia:</span>
+                          <img src={selectedFileUrl} alt="Preview" className="admin-image-preview" />
+                        </div>
+                      )}
+                    </div>
+
+                    <button type="submit" className="admin-submit-btn">
+                      <Plus size={18} />
+                      <span>Adicionar ao Catálogo</span>
+                    </button>
+                  </form>
+                </div>
+
+                {/* Info & Export Column */}
+                <div className="admin-card info-section">
+                  <div className="persistence-instructions">
+                    <h3 className="card-title">Salvar no GitHub</h3>
+                    <p className="instruction-text">
+                      As fotos são salvas apenas localmente no navegador por enquanto. Para torná-las definitivas no repositório GitHub, siga estes passos:
+                    </p>
+                    <ol className="instructions-list">
+                      <li>
+                        Baixe o arquivo de dados atualizado:
+                        <button type="button" onClick={handleDownloadJson} className="admin-download-btn">
+                          <Download size={16} />
+                          <span>Baixar products.json</span>
+                        </button>
+                      </li>
+                      <li>
+                        Substitua o arquivo antigo na pasta do projeto:
+                        <code>src/data/products.json</code>
+                      </li>
+                      <li>
+                        Cole o arquivo físico da imagem (com o mesmo nome do arquivo selecionado) na pasta correspondente à categoria no projeto:
+                        <code>public/assets/catalog/[Nome_Da_Categoria]/</code>
+                      </li>
+                      <li>
+                        Faça o commit e envie as alterações pelo Git!
+                      </li>
+                    </ol>
+                  </div>
+
+                  {sessionAddedProducts.length > 0 && (
+                    <div className="session-history">
+                      <h3 className="card-title">Itens Adicionados na Sessão</h3>
+                      <div className="session-list">
+                        {sessionAddedProducts.map(p => (
+                          <div key={p.id} className="session-item-card">
+                            <img src={p.image} alt={p.name} className="session-item-thumb" />
+                            <div className="session-item-details">
+                              <span className="item-title">{p.name}</span>
+                              <span className="item-cat">{p.category}</span>
+                              <code className="item-path">{p.imagePathForJson}</code>
+                            </div>
+                            <button 
+                              className="delete-item-btn" 
+                              onClick={() => handleDeleteProduct(p.id)}
+                              title="Remover"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {selectedCategory === null && !isSearching && (
+                <h2 className="categories-landing-title">Categorias</h2>
+              )}
 
           {/* Categories Carousel / Slider */}
           <div 
@@ -415,6 +692,8 @@ function App() {
                 </div>
               )}
             </div>
+          )}
+          </>
           )}
         </main>
       </div>
