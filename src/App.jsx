@@ -10,25 +10,107 @@ function App() {
   const [visibleCount, setVisibleCount] = useState(24);
   const [isCategoryHovered, setIsCategoryHovered] = useState(false);
 
+  // Carousel active image state
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Swipe gesture states for mobile carousel
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  // Group products with the same base name
+  const groupedProducts = useMemo(() => {
+    const groups = {};
+    productsData.forEach(p => {
+      // Strip trailing numeric suffix like " 01", "-01", " - 01", " 1", "-1"
+      const baseName = p.name.replace(/[- ]+\d+$/i, '').trim();
+      
+      // Normalize key for grouping (convert hyphens to spaces, lowercase, collapse whitespace)
+      const key = baseName.replace(/[-_]/g, ' ').toLowerCase().replace(/\s+/g, ' ').trim();
+      
+      if (!groups[key]) {
+        groups[key] = {
+          id: p.id,
+          name: baseName,
+          category: p.category,
+          image: p.image, // First image as cover
+          images: []
+        };
+      }
+      if (!groups[key].images.includes(p.image)) {
+        groups[key].images.push(p.image);
+      }
+    });
+    return Object.values(groups);
+  }, []);
+
   // Extract unique categories dynamically
   const categories = useMemo(() => {
-    const cats = new Set(productsData.map(p => p.category));
+    const cats = new Set(groupedProducts.map(p => p.category));
     return Array.from(cats).sort();
-  }, []);
+  }, [groupedProducts]);
 
   // Compute number of products in each category
   const categoryCounts = useMemo(() => {
     const counts = {};
-    productsData.forEach(p => {
+    groupedProducts.forEach(p => {
       counts[p.category] = (counts[p.category] || 0) + 1;
     });
     return counts;
-  }, []);
+  }, [groupedProducts]);
 
   // Pre-selected background-free/studio cover images for each category
   const categoryCovers = useMemo(() => {
     return categoryCoversData;
   }, []);
+
+  // Reset active image when selected product changes
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [selectedProduct]);
+
+  // Keyboard navigation for carousel
+  useEffect(() => {
+    if (!selectedProduct) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowLeft' && selectedProduct.images.length > 1) {
+        setActiveImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1));
+      } else if (e.key === 'ArrowRight' && selectedProduct.images.length > 1) {
+        setActiveImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1));
+      } else if (e.key === 'Escape') {
+        setSelectedProduct(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedProduct]);
+
+  // Touch handlers for mobile swipe gestures
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd || !selectedProduct) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe && selectedProduct.images.length > 1) {
+      setActiveImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1));
+    }
+    if (isRightSwipe && selectedProduct.images.length > 1) {
+      setActiveImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1));
+    }
+  };
 
   const sliderRef = useRef(null);
   const isDown = useRef(false);
@@ -110,7 +192,7 @@ function App() {
 
   // Filter products based on category and search query
   const filteredProducts = useMemo(() => {
-    return productsData.filter(product => {
+    return groupedProducts.filter(product => {
       const matchesCategory = selectedCategory ? product.category === selectedCategory : true;
       const matchesSearch = searchQuery
         ? product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -118,7 +200,7 @@ function App() {
         : true;
       return matchesCategory && matchesSearch;
     });
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, groupedProducts]);
 
   // Paginated/limited subset of products for smooth rendering
   const visibleProducts = useMemo(() => {
@@ -277,6 +359,11 @@ function App() {
                       >
                         <div className="product-image-wrapper">
                           <img src={product.image} alt={product.name} loading="lazy" />
+                          {product.images && product.images.length > 1 && (
+                            <span className="photo-count-badge">
+                              {product.images.length} fotos
+                            </span>
+                          )}
                         </div>
                         <div className="product-info">
                           <span className="product-category-tag">{product.category}</span>
@@ -319,10 +406,78 @@ function App() {
       {selectedProduct && (
         <div className="modal-overlay" onClick={() => setSelectedProduct(null)}>
           <div className="modal-content lightbox-mode" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close-btn" onClick={() => setSelectedProduct(null)}>
-              <X size={20} />
-            </button>
-            <img src={selectedProduct.image} alt={selectedProduct.name} className="lightbox-image" />
+            <div className="modal-header">
+              <div className="modal-title-area">
+                <span className="modal-category">{selectedProduct.category}</span>
+                <h3 className="modal-product-name">{selectedProduct.name}</h3>
+              </div>
+              <button className="modal-close-btn" onClick={() => setSelectedProduct(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div 
+              className="modal-carousel-container"
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+            >
+              {selectedProduct.images && selectedProduct.images.length > 1 && (
+                <button 
+                  className="carousel-nav-btn prev" 
+                  onClick={() => setActiveImageIndex(prev => (prev === 0 ? selectedProduct.images.length - 1 : prev - 1))}
+                  aria-label="Foto anterior"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+              )}
+
+              <div className="carousel-slide-wrapper">
+                <img 
+                  src={selectedProduct.images ? selectedProduct.images[activeImageIndex] : selectedProduct.image} 
+                  alt={`${selectedProduct.name} - Foto ${activeImageIndex + 1}`} 
+                  className="lightbox-image" 
+                />
+              </div>
+
+              {selectedProduct.images && selectedProduct.images.length > 1 && (
+                <button 
+                  className="carousel-nav-btn next" 
+                  onClick={() => setActiveImageIndex(prev => (prev === selectedProduct.images.length - 1 ? 0 : prev + 1))}
+                  aria-label="Próxima foto"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              )}
+            </div>
+
+            {selectedProduct.images && selectedProduct.images.length > 1 && (
+              <div className="carousel-indicators-container">
+                <span className="carousel-counter">
+                  {activeImageIndex + 1} de {selectedProduct.images.length}
+                </span>
+                <div className="carousel-dots">
+                  {selectedProduct.images.map((_, idx) => (
+                    <button 
+                      key={idx}
+                      className={`carousel-dot ${activeImageIndex === idx ? 'active' : ''}`}
+                      onClick={() => setActiveImageIndex(idx)}
+                      aria-label={`Ver foto ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button 
+                className="whatsapp-contact-btn"
+                onClick={() => handleWhatsAppContact(selectedProduct)}
+              >
+                <MessageCircle size={18} />
+                <span>Consultar Vendedor</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
