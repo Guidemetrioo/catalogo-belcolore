@@ -418,7 +418,8 @@ function App() {
             className={`categories-carousel-container ${isCategoryHovered ? 'expanded' : 'minimized'}`}
             onMouseEnter={() => setIsCategoryHovered(true)}
             onMouseLeave={() => setIsCategoryHovered(false)}
-            onClick={() => setIsCategoryHovered(true)}
+            onTouchStart={(e) => { e.stopPropagation(); setIsCategoryHovered(true); }}
+            onTouchEnd={(e) => { e.stopPropagation(); setIsCategoryHovered(false); }}
           >
             <button className="carousel-arrow left" onClick={() => handleScroll('left')}>
               <ChevronLeft size={24} />
