@@ -207,9 +207,13 @@ body {
 
 /* Categories Carousel Slider (Site Oficial Inspired) */
 .categories-carousel-container {
-  position: relative;
+  position: sticky;
+  top: 114px;                  /* Sticky position directly under the header */
+  z-index: 90;                 /* Higher than products list, lower than header */
+  background-color: var(--bg-primary); /* Hide products scrolling underneath */
   width: 100%;
-  margin-bottom: 3rem;
+  border-bottom: 1px solid var(--border-hairline);
+  margin-bottom: 2.5rem;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -219,12 +223,6 @@ body {
 
 .categories-carousel-container.minimized {
   height: 125px;
-  border-bottom: 1px solid var(--border-hairline);
-  margin-bottom: 2.5rem;
-  position: sticky;
-  top: 114px;                  /* Sticky position directly under the header */
-  z-index: 90;                 /* Higher than products list, lower than header */
-  background-color: var(--bg-primary); /* Hide products scrolling underneath */
 }
 
 .categories-slider {
@@ -924,11 +922,14 @@ body {
     max-width: 100%;
   }
 
-  /* Make header and categories non-sticky for better viewport usage on mobile */
+  /* Make header sticky for better viewport usage on mobile */
   .app-header {
-    position: relative;
-    top: auto;
-    padding: 1.25rem 1.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 1rem 1.5rem;
+    background-color: var(--bg-primary);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
   
   .header-top {
@@ -967,11 +968,21 @@ body {
     padding: 0.5rem 1rem;
   }
 
-  .categories-carousel-container.minimized {
-    position: relative;
-    top: auto;
-    height: 110px;
+  .categories-carousel-container {
+    position: sticky;
+    top: 116px;                  /* Sticky directly under mobile header */
+    z-index: 90;
+    background-color: var(--bg-primary);
     margin-bottom: 1.5rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .categories-carousel-container.expanded {
+    height: 300px;
+  }
+
+  .categories-carousel-container.minimized {
+    height: 110px;
   }
 
   /* Product grid: 2 columns for a clean luxury shop look */

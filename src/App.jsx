@@ -8,23 +8,38 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [visibleCount, setVisibleCount] = useState(24);
-  const [isCategoryHovered, setIsCategoryHovered] = useState(false);
+  const [isCategoryHovered, setIsCategoryHovered] = useState(true);
+  const isHoveredRef = useRef(true);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    isHoveredRef.current = isCategoryHovered;
+  }, [isCategoryHovered]);
 
   // Scroll to Top visibility state
   const [showScrollToTop, setShowScrollToTop] = useState(false);
 
-  // Monitor window scroll to show/hide the scroll-to-top button
+  // Monitor window scroll to show/hide the scroll-to-top button & auto-minimize categories bar
   useEffect(() => {
-    const handleScrollVisibility = () => {
+    const handleScrollEffects = () => {
+      // Show/hide scroll-to-top button
       if (window.scrollY > 300) {
         setShowScrollToTop(true);
       } else {
         setShowScrollToTop(false);
       }
+
+      // Auto-minimize categories bar when scrolling down
+      if (window.scrollY > 50) {
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile || !isHoveredRef.current) {
+          setIsCategoryHovered(false);
+        }
+      }
     };
 
-    window.addEventListener('scroll', handleScrollVisibility);
-    return () => window.removeEventListener('scroll', handleScrollVisibility);
+    window.addEventListener('scroll', handleScrollEffects);
+    return () => window.removeEventListener('scroll', handleScrollEffects);
   }, []);
 
   const scrollToTop = () => {
@@ -404,6 +419,7 @@ function App() {
     setSearchQuery('');
     setSelectedProduct(null);
     setVisibleCount(24);
+    setIsCategoryHovered(true);
   };
 
 
@@ -591,9 +607,10 @@ function App() {
 
           {/* Categories Carousel / Slider */}
           <div 
-            className={`categories-carousel-container ${selectedCategory !== null || isSearching ? 'minimized' : ''} ${(!selectedCategory && !isSearching) || isCategoryHovered ? 'expanded' : ''}`}
-            onMouseEnter={() => (selectedCategory !== null || isSearching) && setIsCategoryHovered(true)}
-            onMouseLeave={() => (selectedCategory !== null || isSearching) && setIsCategoryHovered(false)}
+            className={`categories-carousel-container ${isCategoryHovered ? 'expanded' : 'minimized'}`}
+            onMouseEnter={() => setIsCategoryHovered(true)}
+            onMouseLeave={() => setIsCategoryHovered(false)}
+            onClick={() => setIsCategoryHovered(true)}
           >
             <button className="carousel-arrow left" onClick={() => handleScroll('left')}>
               <ChevronLeft size={24} />
@@ -614,12 +631,13 @@ function App() {
                 <button
                   key={cat}
                   className={`category-card ${selectedCategory === cat ? 'selected' : ''}`}
-                  onClick={() => {
+                  onClick={(e) => {
                     if (dragDistance.current > 8) return; // Ignores drag
                     setSelectedCategory(cat);
                     setSearchQuery('');
                     setVisibleCount(24);
                     setIsCategoryHovered(false); // Minimiza imediatamente ao selecionar
+                    e.stopPropagation(); // Evita expandir novamente pelo clique no container
                   }}
                 >
                   <div className="category-image-wrapper">
@@ -654,7 +672,7 @@ function App() {
 
               {filteredProducts.length > 0 ? (
                 <div>
-                  <div className="product-grid">
+                  <div className="product-grid" onClick={() => setIsCategoryHovered(false)}>
                     {visibleProducts.map((product) => (
                       <div
                         key={product.id}
