@@ -36,7 +36,7 @@ function App() {
 
   // URL do seu Google Apps Script publicado como Web App
   // Substitua este link pelo link gerado quando você publicar o script no Google Drive
-  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbyWfB6u2g_h1Y3bX8Xn3Mh5D7oY8Z9aBcDeFgHiJkLmNoPqRsTuVwXyZ/exec";
+  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwraFm5Y6iyMZ52bzWkMa_Kw7169iq9coQRnijucSfGBSAt0yzeBjTlP0c6rfQDAxOT/exec";
 
   // Database local state with cache (Stale-While-Revalidate pattern)
   const [productsList, setProductsList] = useState(() => {
