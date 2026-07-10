@@ -245,6 +245,7 @@ body {
 .categories-slider img {
   pointer-events: none;
   -webkit-user-drag: none;
+  mix-blend-mode: multiply; /* Blends white/off-white backgrounds to be transparent */
 }
 
 /* Expanded/Minimized Gap and Sizing */
