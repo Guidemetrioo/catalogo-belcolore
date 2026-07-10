@@ -141,8 +141,7 @@ function App() {
       <header className="app-header">
         <div className="header-top">
           <div className="logo-container" style={{ cursor: 'pointer' }} onClick={handleReset}>
-            <h1 className="logo-main">Bel Colore</h1>
-            <span className="logo-sub">Mobiliário Brasileiro</span>
+            <img src="/assets/logo.png" alt="Bel Colore" className="logo-image" />
           </div>
           
           <div className="search-wrapper">
