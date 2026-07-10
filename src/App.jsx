@@ -488,134 +488,99 @@ function App() {
                 </button>
                 <div>
                   <h2 className="admin-title">Painel Administrativo</h2>
-                  <p className="admin-subtitle">Adicione fotos e gerencie novos produtos no catálogo.</p>
+                  <p className="admin-subtitle">Adicione novas fotos ao catálogo de forma automática e integrada.</p>
                 </div>
               </div>
 
-              <div className="admin-grid">
-                {/* Form Column */}
-                <div className="admin-card form-section">
-                  <h3 className="card-title">Nova Foto / Item</h3>
-                  <form onSubmit={handleAddProduct} className="admin-form">
-                    <div className="form-group">
-                      <label htmlFor="prod-name">Nome do Produto</label>
+              <div className="admin-card form-section">
+                <h3 className="card-title">Nova Foto / Item</h3>
+                <form onSubmit={handleAddProduct} className="admin-form">
+                  <div className="form-group">
+                    <label htmlFor="prod-name">Nome do Produto</label>
+                    <input 
+                      type="text" 
+                      id="prod-name"
+                      placeholder="Ex: Agda Cadeira Am 08"
+                      value={newProductName}
+                      onChange={(e) => setNewProductName(e.target.value)}
+                      required
+                    />
+                    <small className="form-hint">
+                      Use o mesmo nome base (ex: "Agda Cadeira Am") com a numeração correspondente para agrupar no carrossel automaticamente.
+                    </small>
+                  </div>
+
+                  <div className="form-group">
+                    <div className="label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <label style={{ marginBottom: 0 }}>Categoria</label>
+                      <button 
+                        type="button" 
+                        className="toggle-custom-cat"
+                        onClick={() => setIsCustomCategory(!isCustomCategory)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--accent-gold)',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: '600'
+                        }}
+                      >
+                        {isCustomCategory ? "Selecionar Existente" : "Criar Nova Categoria"}
+                      </button>
+                    </div>
+
+                    {isCustomCategory ? (
                       <input 
-                        type="text" 
-                        id="prod-name"
-                        placeholder="Ex: Agda Cadeira Am 08"
-                        value={newProductName}
-                        onChange={(e) => setNewProductName(e.target.value)}
+                        type="text"
+                        placeholder="Digite a nova categoria..."
+                        value={customCategoryName}
+                        onChange={(e) => setCustomCategoryName(e.target.value)}
                         required
                       />
-                      <small className="form-hint">
-                        Use o mesmo nome base (ex: "Agda Cadeira Am") com a numeração correspondente para agrupar no carrossel automaticamente.
-                      </small>
-                    </div>
-
-                    <div className="form-group">
-                      <div className="label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                        <label style={{ marginBottom: 0 }}>Categoria</label>
-                        <button 
-                          type="button" 
-                          className="toggle-custom-cat"
-                          onClick={() => setIsCustomCategory(!isCustomCategory)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--accent-gold)',
-                            cursor: 'pointer',
-                            fontSize: '0.8rem',
-                            fontWeight: '600'
-                          }}
-                        >
-                          {isCustomCategory ? "Selecionar Existente" : "Criar Nova Categoria"}
-                        </button>
-                      </div>
-
-                      {isCustomCategory ? (
-                        <input 
-                          type="text"
-                          placeholder="Digite a nova categoria..."
-                          value={customCategoryName}
-                          onChange={(e) => setCustomCategoryName(e.target.value)}
-                          required
-                        />
-                      ) : (
-                        <select 
-                          value={newProductCategory}
-                          onChange={(e) => setNewProductCategory(e.target.value)}
-                          required
-                        >
-                          <option value="">-- Selecione uma Categoria --</option>
-                          {categories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-
-                    <div className="form-group">
-                      <label>Foto do Produto</label>
-                      <div className="file-dropzone">
-                        <input 
-                          type="file" 
-                          id="file-input" 
-                          accept="image/*" 
-                          onChange={handleFileChange}
-                          required
-                        />
-                        <label htmlFor="file-input" className="dropzone-label">
-                          <UploadCloud size={24} className="upload-icon" />
-                          <span>{selectedFile ? selectedFile.name : "Clique para escolher a imagem"}</span>
-                        </label>
-                      </div>
-                      
-                      {selectedFileUrl && (
-                        <div className="image-preview-container">
-                          <span className="preview-label">Visualização Prévia:</span>
-                          <img src={selectedFileUrl} alt="Preview" className="admin-image-preview" />
-                        </div>
-                      )}
-                    </div>
-
-                    <button type="submit" className="admin-submit-btn">
-                      <Plus size={18} />
-                      <span>Adicionar ao Catálogo</span>
-                    </button>
-                  </form>
-                </div>
-
-                {/* Info & Export Column */}
-                <div className="admin-card info-section">
-                  <h3 className="card-title">Itens Adicionados na Sessão</h3>
-                  {sessionAddedProducts.length > 0 ? (
-                    <div className="session-history">
-                      <div className="session-list">
-                        {sessionAddedProducts.map(p => (
-                          <div key={p.id} className="session-item-card">
-                            <img src={p.image} alt={p.name} className="session-item-thumb" />
-                            <div className="session-item-details">
-                              <span className="item-title">{p.name}</span>
-                              <span className="item-cat">{p.category}</span>
-                              <code className="item-path">{p.image}</code>
-                            </div>
-                            <button 
-                              className="delete-item-btn" 
-                              onClick={() => handleDeleteProduct(p.id)}
-                              title="Remover"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
+                    ) : (
+                      <select 
+                        value={newProductCategory}
+                        onChange={(e) => setNewProductCategory(e.target.value)}
+                        required
+                      >
+                        <option value="">-- Selecione uma Categoria --</option>
+                        {categories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
                         ))}
-                      </div>
+                      </select>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Foto do Produto</label>
+                    <div className="file-dropzone">
+                      <input 
+                        type="file" 
+                        id="file-input" 
+                        accept="image/*" 
+                        onChange={handleFileChange}
+                        required
+                      />
+                      <label htmlFor="file-input" className="dropzone-label">
+                        <UploadCloud size={24} className="upload-icon" />
+                        <span>{selectedFile ? selectedFile.name : "Clique para escolher a imagem"}</span>
+                      </label>
                     </div>
-                  ) : (
-                    <p className="no-items-text" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                      Nenhuma foto adicionada nesta sessão ainda. As novas adições serão listadas aqui.
-                    </p>
-                  )}
-                </div>
+                    
+                    {selectedFileUrl && (
+                      <div className="image-preview-container">
+                        <span className="preview-label">Visualização Prévia:</span>
+                        <img src={selectedFileUrl} alt="Preview" className="admin-image-preview" />
+                      </div>
+                    )}
+                  </div>
+
+                  <button type="submit" className="admin-submit-btn">
+                    <Plus size={18} />
+                    <span>Adicionar ao Catálogo</span>
+                  </button>
+                </form>
               </div>
             </div>
           ) : (

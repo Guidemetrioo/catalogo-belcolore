@@ -1166,6 +1166,11 @@ body {
   box-shadow: var(--shadow-subtle);
 }
 
+.admin-card.form-section {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
 .card-title {
   font-family: var(--font-display);
   font-size: 1.3rem;
