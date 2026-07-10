@@ -49,20 +49,44 @@ function App() {
     });
   };
 
-  // Database local state
-  const [productsList, setProductsList] = useState(productsData);
+  // URL do seu Google Apps Script publicado como Web App
+  // Substitua este link pelo link gerado quando você publicar o script no Google Drive
+  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwraFm5Y6iyMZ52bzWkMa_Kw7169iq9coQRnijucSfGBSAt0yzeBjTlP0c6rfQDAxOT/exec";
+
+  // Database local state with cache (Stale-While-Revalidate pattern)
+  const [productsList, setProductsList] = useState(() => {
+    try {
+      const cached = localStorage.getItem('belcolore_products');
+      return cached ? JSON.parse(cached) : productsData;
+    } catch (e) {
+      return productsData;
+    }
+  });
+
+  // Fetch updated catalog in background
+  useEffect(() => {
+    const fetchLatestProducts = async () => {
+      // Se ainda for a URL de placeholder, não executa o fetch
+      if (GOOGLE_DRIVE_API_URL.includes("AKfycbyWfB6u2g_h1Y3bX8Xn3Mh5D7oY8Z9aBcDeFgHiJkLmNoPqRsTuVwXyZ")) {
+        return;
+      }
+      try {
+        const res = await fetch(GOOGLE_DRIVE_API_URL);
+        if (!res.ok) throw new Error("Erro ao buscar catálogo do Google Drive");
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setProductsList(data);
+          localStorage.setItem('belcolore_products', JSON.stringify(data));
+        }
+      } catch (err) {
+        console.error("Falha ao sincronizar com Google Drive em segundo plano:", err);
+      }
+    };
+    fetchLatestProducts();
+  }, []);
 
   // Admin View State
   const [isAdminMode, setIsAdminMode] = useState(false);
-
-  // Admin Form States
-  const [newProductName, setNewProductName] = useState('');
-  const [newProductCategory, setNewProductCategory] = useState('');
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [customCategoryName, setCustomCategoryName] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [selectedFileUrl, setSelectedFileUrl] = useState('');
-  const [sessionAddedProducts, setSessionAddedProducts] = useState([]);
 
   // Carousel active image state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -166,157 +190,7 @@ function App() {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      setSelectedFileUrl(URL.createObjectURL(file));
-    }
-  };
 
-  const handleAddProduct = async (e) => {
-    e.preventDefault();
-    if (!newProductName) {
-      alert("Por favor, digite o nome do produto.");
-      return;
-    }
-
-    const category = isCustomCategory ? customCategoryName.trim() : newProductCategory;
-    if (!category) {
-      alert("Por favor, selecione ou digite uma categoria.");
-      return;
-    }
-
-    if (!selectedFile) {
-      alert("Por favor, selecione uma foto.");
-      return;
-    }
-
-    // Convert file to base64
-    const reader = new FileReader();
-    reader.readAsDataURL(selectedFile);
-    reader.onload = async () => {
-      try {
-        const base64Data = reader.result;
-        const filename = selectedFile.name;
-        const cleanImagePath = `/assets/catalog/${category}/${filename}`;
-
-        // 1. Upload image to Vite dev server API
-        const uploadRes = await fetch('/api/upload-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            category,
-            filename,
-            base64Data
-          })
-        });
-
-        if (!uploadRes.ok) {
-          throw new Error('Falha no upload da imagem para o sistema local.');
-        }
-
-        const uploadData = await uploadRes.json();
-        const finalImagePath = uploadData.path || cleanImagePath;
-
-        // 2. Prepare new product object
-        const newProduct = {
-          id: String(productsList.length + 100000 + Date.now()),
-          name: newProductName.trim(),
-          category: category.trim(),
-          image: finalImagePath
-        };
-
-        const updatedList = [newProduct, ...productsList];
-
-        // 3. Save JSON database back to src/data/products.json
-        // Format the database structure: sort and re-index sequentially (similar to original format)
-        const formatData = updatedList.map(p => ({
-          id: p.id,
-          name: p.name,
-          category: p.category,
-          image: p.image
-        }));
-
-        // Alphabetical sort by category and name
-        formatData.sort((a, b) => {
-          const catCompare = a.category.localeCompare(b.category);
-          if (catCompare !== 0) return catCompare;
-          return a.name.localeCompare(b.name);
-        });
-
-        // Sequential IDs
-        formatData.forEach((p, idx) => {
-          p.id = String(idx + 1);
-        });
-
-        const saveRes = await fetch('/api/save-products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formatData)
-        });
-
-        if (!saveRes.ok) {
-          throw new Error('Falha ao salvar as modificações no products.json do sistema.');
-        }
-
-        // 4. Update React State
-        setProductsList(updatedList);
-        setSessionAddedProducts(prev => [newProduct, ...prev]);
-
-        // Reset form
-        setNewProductName('');
-        setSelectedFile(null);
-        setSelectedFileUrl('');
-
-        alert(`Sucesso! O produto "${newProduct.name}" e a foto foram salvos e gravados automaticamente no sistema local.`);
-      } catch (err) {
-        console.error(err);
-        alert(`Erro: ${err.message}`);
-      }
-    };
-  };
-
-  const handleDeleteProduct = async (id) => {
-    const updatedList = productsList.filter(p => p.id !== id);
-
-    // Save updated list to products.json
-    try {
-      const formatData = updatedList.map(p => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        image: p.image
-      }));
-
-      formatData.sort((a, b) => {
-        const catCompare = a.category.localeCompare(b.category);
-        if (catCompare !== 0) return catCompare;
-        return a.name.localeCompare(b.name);
-      });
-
-      formatData.forEach((p, idx) => {
-        p.id = String(idx + 1);
-      });
-
-      const saveRes = await fetch('/api/save-products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formatData)
-      });
-
-      if (!saveRes.ok) {
-        throw new Error('Falha ao sincronizar a exclusão no products.json.');
-      }
-
-      setProductsList(updatedList);
-      setSessionAddedProducts(prev => prev.filter(p => p.id !== id));
-      alert("Produto removido e atualizado no sistema local.");
-    } catch (err) {
-      console.error(err);
-      alert(`Erro ao remover produto do sistema: ${err.message}`);
-    }
-  };
 
   const sliderRef = useRef(null);
   const isDown = useRef(false);
@@ -503,100 +377,34 @@ function App() {
                   <span>Voltar ao Catálogo</span>
                 </button>
                 <div>
-                  <h2 className="admin-title">Painel Administrativo</h2>
-                  <p className="admin-subtitle">Adicione novas fotos ao catálogo de forma automática e integrada.</p>
+                  <h2 className="admin-title">Painel de Integração</h2>
+                  <p className="admin-subtitle">Sincronização direta com o Google Drive.</p>
                 </div>
               </div>
 
-              <div className="admin-card form-section">
-                <h3 className="card-title">Nova Foto / Item</h3>
-                <form onSubmit={handleAddProduct} className="admin-form">
-                  <div className="form-group">
-                    <label htmlFor="prod-name">Nome do Produto</label>
-                    <input 
-                      type="text" 
-                      id="prod-name"
-                      placeholder="Ex: Agda Cadeira Am 08"
-                      value={newProductName}
-                      onChange={(e) => setNewProductName(e.target.value)}
-                      required
-                    />
-                    <small className="form-hint">
-                      Use o mesmo nome base (ex: "Agda Cadeira Am") com a numeração correspondente para agrupar no carrossel automaticamente.
-                    </small>
-                  </div>
-
-                  <div className="form-group">
-                    <div className="label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                      <label style={{ marginBottom: 0 }}>Categoria</label>
-                      <button 
-                        type="button" 
-                        className="toggle-custom-cat"
-                        onClick={() => setIsCustomCategory(!isCustomCategory)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--accent-gold)',
-                          cursor: 'pointer',
-                          fontSize: '0.8rem',
-                          fontWeight: '600'
-                        }}
-                      >
-                        {isCustomCategory ? "Selecionar Existente" : "Criar Nova Categoria"}
-                      </button>
-                    </div>
-
-                    {isCustomCategory ? (
-                      <input 
-                        type="text"
-                        placeholder="Digite a nova categoria..."
-                        value={customCategoryName}
-                        onChange={(e) => setCustomCategoryName(e.target.value)}
-                        required
-                      />
-                    ) : (
-                      <select 
-                        value={newProductCategory}
-                        onChange={(e) => setNewProductCategory(e.target.value)}
-                        required
-                      >
-                        <option value="">-- Selecione uma Categoria --</option>
-                        {categories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label>Foto do Produto</label>
-                    <div className="file-dropzone">
-                      <input 
-                        type="file" 
-                        id="file-input" 
-                        accept="image/*" 
-                        onChange={handleFileChange}
-                        required
-                      />
-                      <label htmlFor="file-input" className="dropzone-label">
-                        <UploadCloud size={24} className="upload-icon" />
-                        <span>{selectedFile ? selectedFile.name : "Clique para escolher a imagem"}</span>
-                      </label>
-                    </div>
-                    
-                    {selectedFileUrl && (
-                      <div className="image-preview-container">
-                        <span className="preview-label">Visualização Prévia:</span>
-                        <img src={selectedFileUrl} alt="Preview" className="admin-image-preview" />
-                      </div>
-                    )}
-                  </div>
-
-                  <button type="submit" className="admin-submit-btn">
-                    <Plus size={18} />
-                    <span>Adicionar ao Catálogo</span>
-                  </button>
-                </form>
+              <div className="admin-card form-section" style={{ textAlign: 'center', padding: '3.5rem 2rem' }}>
+                <div style={{ color: 'var(--accent-gold)', marginBottom: '1.5rem' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" viewBox="0 0 16 16" style={{ margin: '0 auto' }}>
+                    <path d="M12.5 13H3.928a1 1 0 0 1-.857-.485L.234 7.643a1 1 0 0 1 0-.986L2.943 1.83a1 1 0 0 1 .857-.484H12.5a1 1 0 0 1 .857.485l2.709 4.829a1 1 0 0 1 0 .986l-2.709 4.83a1 1 0 0 1-.857.484zM3.928 2.343L1.514 6.643l2.414 4.3H12.5l2.414-4.3-2.414-4.3H3.928z"/>
+                  </svg>
+                </div>
+                <h3 className="card-title" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: '1.2rem', fontSize: '1.4rem' }}>
+                  Catálogo no Google Drive
+                </h3>
+                <p style={{ color: 'var(--text-primary)', fontSize: '0.92rem', lineHeight: '1.6', marginBottom: '2.2rem', maxWidth: '480px', margin: '0 auto 2.2rem' }}>
+                  Este catálogo está integrado diretamente com a sua pasta do Google Drive. 
+                  Para adicionar novas fotos, criar categorias ou remover móveis, basta gerenciar os arquivos diretamente na sua pasta do Drive. As alterações serão refletidas automaticamente no site.
+                </p>
+                <a 
+                  href="https://drive.google.com/drive/u/0/folders/1hnCfnQ9mNqFKzlyOLSbxnMGd-sKsYpdY" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="admin-submit-btn" 
+                  style={{ display: 'inline-flex', textDecoration: 'none', justifyContent: 'center', maxWidth: '300px', margin: '0 auto' }}
+                >
+                  <Settings size={18} style={{ marginRight: '0.5rem' }} />
+                  <span>Abrir Pasta do Google Drive</span>
+                </a>
               </div>
             </div>
           ) : (
