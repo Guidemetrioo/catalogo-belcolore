@@ -16,6 +16,15 @@ function App() {
     return Array.from(cats).sort();
   }, []);
 
+  // Compute number of products in each category
+  const categoryCounts = useMemo(() => {
+    const counts = {};
+    productsData.forEach(p => {
+      counts[p.category] = (counts[p.category] || 0) + 1;
+    });
+    return counts;
+  }, []);
+
   // Pre-selected background-free/studio cover images for each category
   const categoryCovers = useMemo(() => {
     return categoryCoversData;
@@ -235,6 +244,7 @@ function App() {
                     )}
                   </div>
                   <span className="category-card-name">{cat}</span>
+                  <span className="category-card-count">{categoryCounts[cat]} itens</span>
                 </button>
               ))}
             </div>
@@ -276,17 +286,20 @@ function App() {
                     ))}
                   </div>
                   
-                  {/* Load More Button */}
-                  {visibleCount < filteredProducts.length && (
-                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '3.5rem', marginBottom: '1rem' }}>
+                  {/* Pagination progress & Load More Button */}
+                  <div className="pagination-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '3.5rem', marginBottom: '1.5rem', gap: '1.2rem' }}>
+                    <span className="pagination-progress">
+                      Você visualizou {Math.min(visibleCount, filteredProducts.length)} de {filteredProducts.length} produtos
+                    </span>
+                    {visibleCount < filteredProducts.length && (
                       <button 
                         className="load-more-btn"
                         onClick={() => setVisibleCount(prev => prev + 24)}
                       >
                         Carregar Mais
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               ) : (
                 /* Empty state */
@@ -317,6 +330,11 @@ function App() {
       {/* Footer */}
       <footer className="app-footer">
         <span className="footer-text">© {new Date().getFullYear()} Bel Colore. Todos os direitos reservados.</span>
+        {selectedCategory && (
+          <span className="footer-text category-footer-count">
+            Categoria ativa: <strong>{selectedCategory}</strong> ({filteredProducts.length} produtos)
+          </span>
+        )}
         <span className="footer-text">Uso exclusivo interno para consultoras de vendas.</span>
       </footer>
     </div>
