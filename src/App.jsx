@@ -587,16 +587,9 @@ function App() {
 
                 {/* Info & Export Column */}
                 <div className="admin-card info-section">
-                  <div className="persistence-instructions">
-                    <h3 className="card-title">Sincronização Ativa</h3>
-                    <p className="instruction-text" style={{ margin: 0 }}>
-                      ✅ **CMS Autônomo Ativado**: As imagens adicionadas e o arquivo de dados `products.json` são gravados e persistidos de forma 100% automática no seu sistema local. Não é necessário realizar downloads manuais.
-                    </p>
-                  </div>
-
-                  {sessionAddedProducts.length > 0 && (
+                  <h3 className="card-title">Itens Adicionados na Sessão</h3>
+                  {sessionAddedProducts.length > 0 ? (
                     <div className="session-history">
-                      <h3 className="card-title">Itens Adicionados na Sessão</h3>
                       <div className="session-list">
                         {sessionAddedProducts.map(p => (
                           <div key={p.id} className="session-item-card">
@@ -604,7 +597,7 @@ function App() {
                             <div className="session-item-details">
                               <span className="item-title">{p.name}</span>
                               <span className="item-cat">{p.category}</span>
-                              <code className="item-path">{p.imagePathForJson}</code>
+                              <code className="item-path">{p.image}</code>
                             </div>
                             <button 
                               className="delete-item-btn" 
@@ -617,6 +610,10 @@ function App() {
                         ))}
                       </div>
                     </div>
+                  ) : (
+                    <p className="no-items-text" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                      Nenhuma foto adicionada nesta sessão ainda. As novas adições serão listadas aqui.
+                    </p>
                   )}
                 </div>
               </div>
