@@ -159,7 +159,7 @@ function App() {
     }
   };
 
-  const handleAddProduct = (e) => {
+  const handleAddProduct = async (e) => {
     e.preventDefault();
     if (!newProductName) {
       alert("Por favor, digite o nome do produto.");
@@ -172,67 +172,135 @@ function App() {
       return;
     }
 
-    const filename = selectedFile ? selectedFile.name : `${newProductName}.webp`;
-    const cleanImagePath = `/assets/catalog/${category}/${filename}`;
+    if (!selectedFile) {
+      alert("Por favor, selecione uma foto.");
+      return;
+    }
 
-    const newProduct = {
-      id: String(productsList.length + 100000 + Date.now()),
-      name: newProductName.trim(),
-      category: category.trim(),
-      image: selectedFileUrl || cleanImagePath
+    // Convert file to base64
+    const reader = new FileReader();
+    reader.readAsDataURL(selectedFile);
+    reader.onload = async () => {
+      try {
+        const base64Data = reader.result;
+        const filename = selectedFile.name;
+        const cleanImagePath = `/assets/catalog/${category}/${filename}`;
+
+        // 1. Upload image to Vite dev server API
+        const uploadRes = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            category,
+            filename,
+            base64Data
+          })
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error('Falha no upload da imagem para o sistema local.');
+        }
+
+        const uploadData = await uploadRes.json();
+        const finalImagePath = uploadData.path || cleanImagePath;
+
+        // 2. Prepare new product object
+        const newProduct = {
+          id: String(productsList.length + 100000 + Date.now()),
+          name: newProductName.trim(),
+          category: category.trim(),
+          image: finalImagePath
+        };
+
+        const updatedList = [newProduct, ...productsList];
+
+        // 3. Save JSON database back to src/data/products.json
+        // Format the database structure: sort and re-index sequentially (similar to original format)
+        const formatData = updatedList.map(p => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          image: p.image
+        }));
+
+        // Alphabetical sort by category and name
+        formatData.sort((a, b) => {
+          const catCompare = a.category.localeCompare(b.category);
+          if (catCompare !== 0) return catCompare;
+          return a.name.localeCompare(b.name);
+        });
+
+        // Sequential IDs
+        formatData.forEach((p, idx) => {
+          p.id = String(idx + 1);
+        });
+
+        const saveRes = await fetch('/api/save-products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formatData)
+        });
+
+        if (!saveRes.ok) {
+          throw new Error('Falha ao salvar as modificações no products.json do sistema.');
+        }
+
+        // 4. Update React State
+        setProductsList(updatedList);
+        setSessionAddedProducts(prev => [newProduct, ...prev]);
+
+        // Reset form
+        setNewProductName('');
+        setSelectedFile(null);
+        setSelectedFileUrl('');
+
+        alert(`Sucesso! O produto "${newProduct.name}" e a foto foram salvos e gravados automaticamente no sistema local.`);
+      } catch (err) {
+        console.error(err);
+        alert(`Erro: ${err.message}`);
+      }
     };
-
-    setProductsList(prev => [newProduct, ...prev]);
-
-    setSessionAddedProducts(prev => [
-      {
-        ...newProduct,
-        originalFilename: filename,
-        imagePathForJson: cleanImagePath
-      },
-      ...prev
-    ]);
-
-    setNewProductName('');
-    setSelectedFile(null);
-    setSelectedFileUrl('');
-    
-    alert(`Produto "${newProduct.name}" adicionado com sucesso!`);
   };
 
-  const handleDeleteProduct = (id) => {
-    setProductsList(prev => prev.filter(p => p.id !== id));
-    setSessionAddedProducts(prev => prev.filter(p => p.id !== id));
-  };
+  const handleDeleteProduct = async (id) => {
+    const updatedList = productsList.filter(p => p.id !== id);
 
-  const handleDownloadJson = () => {
-    const exportData = productsList.map(p => {
-      const sessionItem = sessionAddedProducts.find(s => s.id === p.id);
-      return {
+    // Save updated list to products.json
+    try {
+      const formatData = updatedList.map(p => ({
         id: p.id,
         name: p.name,
         category: p.category,
-        image: sessionItem ? sessionItem.imagePathForJson : p.image
-      };
-    });
+        image: p.image
+      }));
 
-    exportData.sort((a, b) => {
-      const catCompare = a.category.localeCompare(b.category);
-      if (catCompare !== 0) return catCompare;
-      return a.name.localeCompare(b.name);
-    });
+      formatData.sort((a, b) => {
+        const catCompare = a.category.localeCompare(b.category);
+        if (catCompare !== 0) return catCompare;
+        return a.name.localeCompare(b.name);
+      });
 
-    exportData.forEach((p, idx) => {
-      p.id = String(idx + 1);
-    });
+      formatData.forEach((p, idx) => {
+        p.id = String(idx + 1);
+      });
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "products.json");
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+      const saveRes = await fetch('/api/save-products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formatData)
+      });
+
+      if (!saveRes.ok) {
+        throw new Error('Falha ao sincronizar a exclusão no products.json.');
+      }
+
+      setProductsList(updatedList);
+      setSessionAddedProducts(prev => prev.filter(p => p.id !== id));
+      alert("Produto removido e atualizado no sistema local.");
+    } catch (err) {
+      console.error(err);
+      alert(`Erro ao remover produto do sistema: ${err.message}`);
+    }
   };
 
   const sliderRef = useRef(null);
@@ -520,30 +588,10 @@ function App() {
                 {/* Info & Export Column */}
                 <div className="admin-card info-section">
                   <div className="persistence-instructions">
-                    <h3 className="card-title">Salvar no GitHub</h3>
-                    <p className="instruction-text">
-                      As fotos são salvas apenas localmente no navegador por enquanto. Para torná-las definitivas no repositório GitHub, siga estes passos:
+                    <h3 className="card-title">Sincronização Ativa</h3>
+                    <p className="instruction-text" style={{ margin: 0 }}>
+                      ✅ **CMS Autônomo Ativado**: As imagens adicionadas e o arquivo de dados `products.json` são gravados e persistidos de forma 100% automática no seu sistema local. Não é necessário realizar downloads manuais.
                     </p>
-                    <ol className="instructions-list">
-                      <li>
-                        Baixe o arquivo de dados atualizado:
-                        <button type="button" onClick={handleDownloadJson} className="admin-download-btn">
-                          <Download size={16} />
-                          <span>Baixar products.json</span>
-                        </button>
-                      </li>
-                      <li>
-                        Substitua o arquivo antigo na pasta do projeto:
-                        <code>src/data/products.json</code>
-                      </li>
-                      <li>
-                        Cole o arquivo físico da imagem (com o mesmo nome do arquivo selecionado) na pasta correspondente à categoria no projeto:
-                        <code>public/assets/catalog/[Nome_Da_Categoria]/</code>
-                      </li>
-                      <li>
-                        Faça o commit e envie as alterações pelo Git!
-                      </li>
-                    </ol>
                   </div>
 
                   {sessionAddedProducts.length > 0 && (
