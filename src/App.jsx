@@ -493,15 +493,6 @@ function App() {
               </div>
             )}
 
-            <div className="modal-actions">
-              <button 
-                className="whatsapp-contact-btn"
-                onClick={() => handleWhatsAppContact(selectedProduct)}
-              >
-                <MessageCircle size={18} />
-                <span>Consultar Vendedor</span>
-              </button>
-            </div>
           </div>
         </div>
       )}
