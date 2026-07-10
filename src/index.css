@@ -706,68 +706,115 @@ body {
   .app-header {
     padding: 1.5rem 2rem;
   }
-  
-  .main-layout {
-    flex-direction: column;
-  }
-  
-  .category-sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border-hairline);
-    max-height: 140px;
-    padding: 1rem 1.5rem;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .category-list {
-    flex-direction: row;
-    overflow-x: auto;
-    white-space: nowrap;
-    padding-bottom: 0.5rem;
-  }
-  
-  .category-button {
-    width: auto;
-    display: inline-block;
-  }
-  
-  .category-button.active {
-    border-left: none;
-    border-bottom: 2px solid var(--accent-gold);
-    padding-bottom: 0.6rem;
-  }
-  
   .catalog-content {
     padding: 2rem;
   }
 }
 
 @media (max-width: 768px) {
-  .header-top {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1.5rem;
+  /* Make app container full width, remove borders */
+  .app-container {
+    border-left: none;
+    border-right: none;
+    max-width: 100%;
+  }
+
+  /* Make header and categories non-sticky for better viewport usage on mobile */
+  .app-header {
+    position: relative;
+    top: auto;
+    padding: 1.25rem 1.5rem;
   }
   
+  .header-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    margin-bottom: 0;
+  }
+  
+  .logo-image {
+    height: 30px;
+    margin: 0 auto; /* Center logo on mobile */
+  }
+
   .search-wrapper {
     width: 100%;
   }
-  
-  .modal-content {
+
+  .catalog-content {
+    padding: 1.5rem;
+  }
+
+  .listing-header {
     flex-direction: column;
-    max-height: 90vh;
-    overflow-y: auto;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Hide navigation arrows and adjust carousel paddings */
+  .carousel-arrow {
+    display: none !important;
+  }
+
+  .categories-slider {
+    padding: 0.5rem 1rem;
+  }
+
+  .categories-carousel-container.minimized {
+    position: relative;
+    top: auto;
+    height: 110px;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Product grid: 2 columns for a clean luxury shop look */
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.2rem;
+  }
+
+  .product-name {
+    font-size: 0.9rem;
+  }
+
+  .product-category-tag {
+    font-size: 0.7rem;
+  }
+
+  /* Pagination */
+  .pagination-progress {
+    font-size: 0.85rem;
+  }
+
+  .load-more-btn {
+    padding: 0.7rem 1.8rem;
+    font-size: 0.85rem;
+  }
+
+  /* Lightbox Modal */
+  .modal-content.lightbox-mode {
+    max-width: 95vw;
+    max-height: 85vh;
+    padding: 1.2rem;
+  }
+
+  .lightbox-image {
+    max-width: 90vw;
+    max-height: 75vh;
+  }
+
+  /* Footer */
+  .app-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 2rem 1.5rem;
+    text-align: center;
   }
   
-  .modal-image-section {
-    padding: 2rem;
-    border-right: none;
-    border-bottom: 1px solid var(--border-hairline);
-  }
-  
-  .modal-info-section {
-    padding: 2rem;
+  .footer-text {
+    font-size: 0.75rem;
   }
 }
