@@ -1,3 +1,22 @@
+/* Fontes do Site Principal (Bel Colore) */
+@font-face {
+  font-family: 'garet-book';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://belcolore.com.br/wp-content/uploads/2024/03/garet-book-webfont.woff2') format('woff2'),
+       url('https://belcolore.com.br/wp-content/uploads/2024/03/garet-book-webfont.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'kiona';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://belcolore.com.br/wp-content/uploads/2024/03/kiona-regular-webfont.woff2') format('woff2'),
+       url('https://belcolore.com.br/wp-content/uploads/2024/03/kiona-regular-webfont.woff') format('woff');
+}
+
 /* Reset and variables */
 :root {
   --bg-primary: #ffffff;
@@ -8,8 +27,8 @@
   --accent-gold-hover: #b0814c; /* Hover Gold */
   --accent-secondary: #a37c4e;  /* Secondary Gold/Sand tone */
   --border-hairline: #eae5df;
-  --font-display: 'Playfair Display', serif;
-  --font-body: 'DM Sans', sans-serif;
+  --font-display: 'kiona', sans-serif;
+  --font-body: 'garet-book', sans-serif;
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --shadow-subtle: 0 4px 20px rgba(60, 53, 48, 0.04);
 }
