@@ -12,7 +12,7 @@ function App() {
   const [isCategoryAutoExpanded, setIsCategoryAutoExpanded] = useState(false);
   const expandTimerRef = useRef(null);
 
-  const triggerCategoryAutoExpand = (durationMs = 3000) => {
+  const triggerCategoryAutoExpand = (durationMs = 1500) => {
     setIsCategoryAutoExpanded(true);
     if (expandTimerRef.current) {
       clearTimeout(expandTimerRef.current);
@@ -434,18 +434,18 @@ function App() {
             onMouseLeave={() => {
               if (selectedCategory !== null || isSearching) {
                 setIsCategoryHovered(false);
-                triggerCategoryAutoExpand(3000);
+                triggerCategoryAutoExpand(1500);
               }
             }}
-            onTouchStart={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(3000)}
-            onTouchMove={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(3000)}
-            onTouchEnd={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(3000)}
+            onTouchStart={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(1500)}
+            onTouchMove={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(1500)}
+            onTouchEnd={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(1500)}
           >
             <button 
               className="carousel-arrow left" 
               onClick={() => { 
                 handleScroll('left'); 
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(3000); 
+                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1500); 
               }}
             >
               <ChevronLeft size={24} />
@@ -456,20 +456,20 @@ function App() {
               ref={sliderRef}
               onMouseDown={(e) => {
                 handleMouseDown(e);
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(3000);
+                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1500);
               }}
               onMouseLeave={handleMouseLeave}
               onMouseUp={(e) => {
                 handleMouseUp(e);
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(3000);
+                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1500);
               }}
               onMouseMove={(e) => {
                 handleMouseMove(e);
-                if (isDown.current && (selectedCategory !== null || isSearching)) triggerCategoryAutoExpand(3000);
+                if (isDown.current && (selectedCategory !== null || isSearching)) triggerCategoryAutoExpand(1500);
               }}
               onScroll={() => {
                 checkScroll();
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(3000);
+                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1500);
               }}
             >
 
@@ -483,7 +483,7 @@ function App() {
                     setSelectedCategory(cat);
                     setSearchQuery('');
                     setIsCategoryHovered(false);
-                    triggerCategoryAutoExpand(3000); // Permanece maximizado por 3s após selecionar
+                    triggerCategoryAutoExpand(1500); // Permanece maximizado por 1.5s após selecionar
                   }}
                 >
                   <div className="category-image-wrapper">
@@ -503,7 +503,7 @@ function App() {
               className="carousel-arrow right" 
               onClick={() => { 
                 handleScroll('right'); 
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(3000); 
+                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1500); 
               }}
             >
               <ChevronRight size={24} />
