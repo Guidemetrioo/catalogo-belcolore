@@ -8,13 +8,27 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [visibleCount, setVisibleCount] = useState(24);
-  const [isCategoryHovered, setIsCategoryHovered] = useState(true);
-  const isHoveredRef = useRef(true);
+  const [isCategoryHovered, setIsCategoryHovered] = useState(false);
+  const [isCategoryAutoExpanded, setIsCategoryAutoExpanded] = useState(false);
+  const expandTimerRef = useRef(null);
 
-  // Keep ref in sync with state
+  const triggerCategoryAutoExpand = (durationMs = 3000) => {
+    setIsCategoryAutoExpanded(true);
+    if (expandTimerRef.current) {
+      clearTimeout(expandTimerRef.current);
+    }
+    expandTimerRef.current = setTimeout(() => {
+      setIsCategoryAutoExpanded(false);
+    }, durationMs);
+  };
+
   useEffect(() => {
-    isHoveredRef.current = isCategoryHovered;
-  }, [isCategoryHovered]);
+    return () => {
+      if (expandTimerRef.current) {
+        clearTimeout(expandTimerRef.current);
+      }
+    };
+  }, []);
 
   // Scroll to Top visibility state
   const [showScrollToTop, setShowScrollToTop] = useState(false);
@@ -415,24 +429,48 @@ function App() {
 
           {/* Categories Carousel / Slider */}
           <div 
-            className={`categories-carousel-container ${isCategoryHovered ? 'expanded' : 'minimized'}`}
-            onMouseEnter={() => setIsCategoryHovered(true)}
-            onMouseLeave={() => setIsCategoryHovered(false)}
-            onTouchStart={(e) => { e.stopPropagation(); setIsCategoryHovered(true); }}
-            onTouchEnd={(e) => { e.stopPropagation(); setIsCategoryHovered(false); }}
+            className={`categories-carousel-container ${selectedCategory !== null || isSearching ? 'minimized' : ''} ${(!selectedCategory && !isSearching) || isCategoryHovered || isCategoryAutoExpanded ? 'expanded' : ''}`}
+            onMouseEnter={() => (selectedCategory !== null || isSearching) && setIsCategoryHovered(true)}
+            onMouseLeave={() => {
+              if (selectedCategory !== null || isSearching) {
+                setIsCategoryHovered(false);
+                triggerCategoryAutoExpand(3000);
+              }
+            }}
+            onTouchStart={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(3000)}
+            onTouchMove={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(3000)}
+            onTouchEnd={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(3000)}
           >
-            <button className="carousel-arrow left" onClick={() => handleScroll('left')}>
+            <button 
+              className="carousel-arrow left" 
+              onClick={() => { 
+                handleScroll('left'); 
+                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(3000); 
+              }}
+            >
               <ChevronLeft size={24} />
             </button>
 
             <div 
               className="categories-slider" 
               ref={sliderRef}
-              onMouseDown={handleMouseDown}
+              onMouseDown={(e) => {
+                handleMouseDown(e);
+                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(3000);
+              }}
               onMouseLeave={handleMouseLeave}
-              onMouseUp={handleMouseUp}
-              onMouseMove={handleMouseMove}
-              onScroll={checkScroll}
+              onMouseUp={(e) => {
+                handleMouseUp(e);
+                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(3000);
+              }}
+              onMouseMove={(e) => {
+                handleMouseMove(e);
+                if (isDown.current && (selectedCategory !== null || isSearching)) triggerCategoryAutoExpand(3000);
+              }}
+              onScroll={() => {
+                checkScroll();
+                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(3000);
+              }}
             >
 
               {/* Categorias Dinâmicas */}
@@ -444,9 +482,8 @@ function App() {
                     if (dragDistance.current > 8) return; // Ignores drag
                     setSelectedCategory(cat);
                     setSearchQuery('');
-                    setVisibleCount(24);
-                    setIsCategoryHovered(false); // Minimiza imediatamente ao selecionar
-                    e.stopPropagation(); // Evita expandir novamente pelo clique no container
+                    setIsCategoryHovered(false);
+                    triggerCategoryAutoExpand(3000); // Permanece maximizado por 3s após selecionar
                   }}
                 >
                   <div className="category-image-wrapper">
@@ -462,7 +499,13 @@ function App() {
               ))}
             </div>
 
-            <button className="carousel-arrow right" onClick={() => handleScroll('right')}>
+            <button 
+              className="carousel-arrow right" 
+              onClick={() => { 
+                handleScroll('right'); 
+                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(3000); 
+              }}
+            >
               <ChevronRight size={24} />
             </button>
           </div>
