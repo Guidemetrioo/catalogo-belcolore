@@ -145,10 +145,33 @@ function App() {
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
 
-  // Group products with the same base name
+  // Track failed/broken images at runtime
+  const [failedImages, setFailedImages] = useState(new Set());
+
+  const handleImageError = (imgPath) => {
+    if (!imgPath) return;
+    setFailedImages(prev => {
+      if (prev.has(imgPath)) return prev;
+      const next = new Set(prev);
+      next.add(imgPath);
+      return next;
+    });
+  };
+
+  // Group products with the same base name, automatically excluding any product without a photo or broken image
   const groupedProducts = useMemo(() => {
     const groups = {};
     productsList.forEach(p => {
+      // Ignore products without a photo or with empty/invalid image strings
+      if (!p.image || typeof p.image !== 'string' || !p.image.trim() || p.image.includes('placeholder')) {
+        return;
+      }
+      
+      const imgPath = p.image.trim();
+      if (failedImages.has(imgPath)) {
+        return;
+      }
+
       // Strip trailing numeric suffix like " 01", "-01", " - 01", " 1", "-1"
       const baseName = p.name.replace(/[- ]+\d+$/i, '').trim();
       
@@ -160,16 +183,27 @@ function App() {
           id: p.id,
           name: baseName,
           category: p.category,
-          image: p.image, // First image as cover
+          image: imgPath,
           images: []
         };
       }
-      if (!groups[key].images.includes(p.image)) {
-        groups[key].images.push(p.image);
+      if (!failedImages.has(imgPath) && !groups[key].images.includes(imgPath)) {
+        groups[key].images.push(imgPath);
       }
     });
-    return Object.values(groups);
-  }, [productsList]);
+
+    const validGroups = [];
+    Object.values(groups).forEach(group => {
+      const validImages = group.images.filter(img => !failedImages.has(img));
+      if (validImages.length > 0) {
+        group.image = validImages[0];
+        group.images = validImages;
+        validGroups.push(group);
+      }
+    });
+
+    return validGroups;
+  }, [productsList, failedImages]);
 
   // Extract unique categories dynamically
   const categories = useMemo(() => {
@@ -537,7 +571,12 @@ function App() {
                         onClick={() => setSelectedProduct(product)}
                       >
                         <div className="product-image-wrapper">
-                          <img src={product.image} alt={product.name} loading="lazy" />
+                          <img 
+                            src={product.image} 
+                            alt={product.name} 
+                            loading="lazy" 
+                            onError={() => handleImageError(product.image)}
+                          />
                           {product.images && product.images.length > 1 && (
                             <span className="photo-count-badge">
                               {product.images.length} fotos
