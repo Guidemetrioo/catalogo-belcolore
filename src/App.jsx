@@ -429,24 +429,13 @@ function App() {
 
           {/* Categories Carousel / Slider */}
           <div 
-            className={`categories-carousel-container ${selectedCategory !== null || isSearching ? 'minimized' : ''} ${(!selectedCategory && !isSearching) || isCategoryHovered || isCategoryAutoExpanded ? 'expanded' : ''}`}
+            className={`categories-carousel-container ${selectedCategory !== null || isSearching ? 'minimized' : ''} ${(!selectedCategory && !isSearching) || isCategoryHovered ? 'expanded' : ''}`}
             onMouseEnter={() => (selectedCategory !== null || isSearching) && setIsCategoryHovered(true)}
-            onMouseLeave={() => {
-              if (selectedCategory !== null || isSearching) {
-                setIsCategoryHovered(false);
-                triggerCategoryAutoExpand(1000);
-              }
-            }}
-            onTouchStart={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(1000)}
-            onTouchMove={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(1000)}
-            onTouchEnd={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(1000)}
+            onMouseLeave={() => (selectedCategory !== null || isSearching) && setIsCategoryHovered(false)}
           >
             <button 
               className="carousel-arrow left" 
-              onClick={() => { 
-                handleScroll('left'); 
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1000); 
-              }}
+              onClick={() => handleScroll('left')}
             >
               <ChevronLeft size={24} />
             </button>
@@ -454,23 +443,11 @@ function App() {
             <div 
               className="categories-slider" 
               ref={sliderRef}
-              onMouseDown={(e) => {
-                handleMouseDown(e);
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1000);
-              }}
+              onMouseDown={handleMouseDown}
               onMouseLeave={handleMouseLeave}
-              onMouseUp={(e) => {
-                handleMouseUp(e);
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1000);
-              }}
-              onMouseMove={(e) => {
-                handleMouseMove(e);
-                if (isDown.current && (selectedCategory !== null || isSearching)) triggerCategoryAutoExpand(1000);
-              }}
-              onScroll={() => {
-                checkScroll();
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1000);
-              }}
+              onMouseUp={handleMouseUp}
+              onMouseMove={handleMouseMove}
+              onScroll={checkScroll}
             >
 
               {/* Categorias Dinâmicas */}
@@ -483,7 +460,6 @@ function App() {
                     setSelectedCategory(cat);
                     setSearchQuery('');
                     setIsCategoryHovered(false);
-                    triggerCategoryAutoExpand(1000); // Permanece maximizado por 1s após selecionar
                   }}
                 >
                   <div className="category-image-wrapper">
@@ -501,10 +477,7 @@ function App() {
 
             <button 
               className="carousel-arrow right" 
-              onClick={() => { 
-                handleScroll('right'); 
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1000); 
-              }}
+              onClick={() => handleScroll('right')}
             >
               <ChevronRight size={24} />
             </button>

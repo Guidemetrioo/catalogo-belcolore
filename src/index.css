@@ -62,7 +62,7 @@ body {
 
 /* Header */
 .app-header {
-  padding: 2rem 3rem 1.5rem;
+  padding: 0.8rem 3rem 0.6rem;
   border-bottom: 1px solid var(--border-hairline);
   background-color: var(--bg-primary);
   position: sticky;
@@ -74,7 +74,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0;
 }
 
 .logo-container {
@@ -83,7 +83,7 @@ body {
 }
 
 .logo-image {
-  height: 38px;
+  height: 36px;
   width: auto;
   object-fit: contain;
   display: block;
@@ -190,7 +190,7 @@ body {
 /* Main catalog area */
 .catalog-content {
   flex: 1;
-  padding: 2.5rem 3rem;
+  padding: 0.8rem 3rem 2.5rem;
   background-color: var(--bg-primary);
   min-width: 0;          /* Prevents content stretching */
 }
@@ -201,19 +201,19 @@ body {
   font-weight: 300;
   font-size: 1.8rem;
   letter-spacing: 0.05em;
-  margin-bottom: 2rem;
+  margin-bottom: 1.2rem;
   color: var(--text-primary);
 }
 
 /* Categories Carousel Slider (Site Oficial Inspired) */
 .categories-carousel-container {
   position: sticky;
-  top: 114px;                  /* Sticky position directly under the header */
+  top: 60px;                  /* Sticky position directly under the header */
   z-index: 90;                 /* Higher than products list, lower than header */
   background-color: var(--bg-primary); /* Hide products scrolling underneath */
   width: 100%;
   border-bottom: 1px solid var(--border-hairline);
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.2rem;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -222,7 +222,8 @@ body {
 }
 
 .categories-carousel-container.minimized {
-  height: 125px;
+  height: 96px;
+  margin-bottom: 0.8rem;
 }
 
 .categories-slider {
@@ -260,7 +261,8 @@ body {
 }
 
 .categories-carousel-container.minimized .categories-slider {
-  gap: 1.5rem;
+  gap: 1.2rem;
+  padding: 0.4rem 3rem;
 }
 
 /* Category Card base */
@@ -284,7 +286,7 @@ body {
 
 /* Minimized Card Size */
 .categories-carousel-container.minimized .category-card {
-  width: 110px;
+  width: 95px;
 }
 
 /* Image Wrappers (Borderless, transparent to match the site) */
@@ -310,8 +312,8 @@ body {
 /* Minimized Image Height */
 .categories-carousel-container.minimized .category-image-wrapper {
   aspect-ratio: 1/1;
-  width: 60px;
-  height: 60px;
+  width: 46px;
+  height: 46px;
   padding: 0;
 }
 
@@ -363,15 +365,15 @@ body {
 
 /* Minimized Card Text */
 .categories-carousel-container.minimized .category-card-name {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 500;
-  letter-spacing: 0.05em;
-  margin-top: 0.5rem;
+  letter-spacing: 0.04em;
+  margin-top: 0.3rem;
 }
 
 .categories-carousel-container.minimized .category-card-count {
-  font-size: 0.55rem;
-  margin-top: 0.1rem;
+  font-size: 0.5rem;
+  margin-top: 0.05rem;
 }
 
 
@@ -473,29 +475,29 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 0.8rem;
   border-bottom: 1px solid var(--border-hairline);
-  padding-bottom: 1rem;
+  padding-bottom: 0.4rem;
 }
 
 .listing-title {
   font-family: var(--font-display);
   font-weight: 300;
-  font-size: 1.8rem;
+  font-size: 1.4rem;
   letter-spacing: 0.05em;
   color: var(--text-primary);
 }
 
 .product-count {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   letter-spacing: 0.05em;
 }
 
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 2.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 1rem 1.2rem;
 }
 
 .product-card {
@@ -514,7 +516,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 0.85rem;
   overflow: hidden;
   position: relative;
   transition: var(--transition-smooth);
@@ -537,16 +539,16 @@ body {
 }
 
 .product-info {
-  margin-top: 1rem;
+  margin-top: 0.8rem;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.2rem;
 }
 
 .product-name {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 1rem;
+  font-size: 0.92rem;
   letter-spacing: 0.02em;
   color: var(--text-primary);
 }
@@ -970,10 +972,10 @@ body {
 
   .categories-carousel-container {
     position: sticky;
-    top: 116px;                  /* Sticky directly under mobile header */
+    top: 86px;                  /* Sticky directly under mobile header */
     z-index: 90;
     background-color: var(--bg-primary);
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
@@ -982,7 +984,7 @@ body {
   }
 
   .categories-carousel-container.minimized {
-    height: 110px;
+    height: 75px;
   }
 
   /* Product grid: 2 columns for a clean luxury shop look */
