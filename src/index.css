@@ -1467,3 +1467,156 @@ body {
   background-color: rgba(217, 83, 79, 0.1);
   color: #c9302c;
 }
+
+/* Admin Password Modal */
+.modal-content.admin-password-card {
+  background-color: var(--bg-primary);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 420px;
+  padding: 2.2rem 2rem;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border-hairline);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: zoomIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lock-icon-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: rgba(205, 155, 98, 0.12);
+  color: var(--accent-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.admin-password-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.3rem;
+}
+
+.admin-password-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.admin-password-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.admin-password-input {
+  width: 100%;
+  padding: 0.8rem 2.8rem 0.8rem 1rem;
+  border: 1px solid var(--border-hairline);
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  transition: var(--transition-smooth);
+  outline: none;
+}
+
+.admin-password-input:focus {
+  border-color: var(--accent-gold);
+  background-color: var(--bg-primary);
+  box-shadow: 0 0 0 3px rgba(205, 155, 98, 0.15);
+}
+
+.admin-password-input.error {
+  border-color: #d9534f;
+  box-shadow: 0 0 0 3px rgba(217, 83, 79, 0.15);
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border-radius: 4px;
+  transition: var(--transition-smooth);
+}
+
+.password-toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.password-error-message {
+  font-size: 0.8rem;
+  color: #d9534f;
+  text-align: left;
+  margin-top: -0.3rem;
+  font-weight: 500;
+}
+
+.password-actions {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.password-cancel-btn {
+  flex: 1;
+  padding: 0.8rem;
+  border: 1px solid var(--border-hairline);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.password-cancel-btn:hover {
+  background-color: #f0ede8;
+}
+
+.password-submit-btn {
+  flex: 1.2;
+  padding: 0.8rem;
+  border: none;
+  background-color: var(--accent-gold);
+  color: #ffffff;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  box-shadow: 0 4px 12px rgba(205, 155, 98, 0.25);
+}
+
+.password-submit-btn:hover {
+  background-color: var(--accent-gold-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(205, 155, 98, 0.35);
+}

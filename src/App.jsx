@@ -1,4 +1,4 @@
-import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, UploadCloud, Download, Trash2, Plus, ArrowLeft } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, UploadCloud, Download, Trash2, Plus, ArrowLeft, Lock, Eye, EyeOff } from 'lucide-react';
 import productsData from './data/products.json';
 import categoryCoversData from './data/category_covers.json';
 import { useState, useMemo, useRef, useEffect } from 'react';
@@ -99,8 +99,44 @@ function App() {
     fetchLatestProducts();
   }, []);
 
-  // Admin View State
+  // Admin View & Password Protection State
   const [isAdminMode, setIsAdminMode] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleAdminToggle = () => {
+    if (isAdminMode) {
+      setIsAdminMode(false);
+    } else {
+      if (isAdminAuthenticated) {
+        setIsAdminMode(true);
+        setSelectedCategory(null);
+        setSearchQuery('');
+      } else {
+        setIsPasswordModalOpen(true);
+        setAdminPasswordInput('');
+        setPasswordError('');
+      }
+    }
+  };
+
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    if (adminPasswordInput === 'Belcolore2026') {
+      setIsAdminAuthenticated(true);
+      setIsPasswordModalOpen(false);
+      setIsAdminMode(true);
+      setSelectedCategory(null);
+      setSearchQuery('');
+      setAdminPasswordInput('');
+      setPasswordError('');
+    } else {
+      setPasswordError('Senha incorreta. Tente novamente.');
+    }
+  };
 
   // Carousel active image state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -365,11 +401,7 @@ function App() {
 
             <button 
               className={`admin-toggle-btn ${isAdminMode ? 'active' : ''}`}
-              onClick={() => {
-                setIsAdminMode(!isAdminMode);
-                setSelectedCategory(null);
-                setSearchQuery('');
-              }}
+              onClick={handleAdminToggle}
               title={isAdminMode ? "Voltar ao Catálogo" : "Área do Administrador"}
             >
               <Settings size={20} />
@@ -618,6 +650,67 @@ function App() {
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* Admin Password Modal */}
+      {isPasswordModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsPasswordModalOpen(false)}>
+          <div className="modal-content admin-password-card" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={() => setIsPasswordModalOpen(false)}>
+              <X size={20} />
+            </button>
+
+            <div className="admin-password-header">
+              <div className="lock-icon-badge">
+                <Lock size={28} />
+              </div>
+              <h3 className="admin-password-title">Área do Administrador</h3>
+              <p className="admin-password-subtitle">Digite a senha de acesso para continuar.</p>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit} className="admin-password-form">
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className={`admin-password-input ${passwordError ? 'error' : ''}`}
+                  placeholder="Digite a senha..."
+                  value={adminPasswordInput}
+                  onChange={(e) => {
+                    setAdminPasswordInput(e.target.value);
+                    if (passwordError) setPasswordError('');
+                  }}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                  title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+
+              {passwordError && (
+                <span className="password-error-message">{passwordError}</span>
+              )}
+
+              <div className="password-actions">
+                <button
+                  type="button"
+                  className="password-cancel-btn"
+                  onClick={() => setIsPasswordModalOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="password-submit-btn">
+                  Acessar Painel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
