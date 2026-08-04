@@ -413,6 +413,11 @@ body {
 }
 
 /* Highlights and Hover states (Clean design) */
+.category-card:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+}
+
 .category-card:hover .category-image-wrapper img {
   transform: scale(1.06);
 }
@@ -985,6 +990,25 @@ body {
 
   .categories-carousel-container.minimized {
     height: 75px;
+  }
+
+  .categories-carousel-container.minimized.expanded {
+    height: 240px;
+  }
+
+  .categories-carousel-container.minimized.expanded .categories-slider {
+    gap: 1.2rem;
+    padding: 0.5rem 1.2rem;
+  }
+
+  .categories-carousel-container.minimized.expanded .category-card {
+    width: 130px;
+  }
+
+  .categories-carousel-container.minimized.expanded .category-card-name {
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
   }
 
   /* Product grid: 2 columns for a clean luxury shop look */
