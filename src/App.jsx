@@ -9,26 +9,12 @@ function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [visibleCount, setVisibleCount] = useState(24);
   const [isCategoryHovered, setIsCategoryHovered] = useState(false);
-  const [isCategoryAutoExpanded, setIsCategoryAutoExpanded] = useState(false);
-  const expandTimerRef = useRef(null);
+  const isHoveredRef = useRef(false);
 
-  const triggerCategoryAutoExpand = (durationMs = 1000) => {
-    setIsCategoryAutoExpanded(true);
-    if (expandTimerRef.current) {
-      clearTimeout(expandTimerRef.current);
-    }
-    expandTimerRef.current = setTimeout(() => {
-      setIsCategoryAutoExpanded(false);
-    }, durationMs);
-  };
-
+  // Keep ref in sync with state so scroll handler can read it without stale closures
   useEffect(() => {
-    return () => {
-      if (expandTimerRef.current) {
-        clearTimeout(expandTimerRef.current);
-      }
-    };
-  }, []);
+    isHoveredRef.current = isCategoryHovered;
+  }, [isCategoryHovered]);
 
   // Scroll to Top visibility state
   const [showScrollToTop, setShowScrollToTop] = useState(false);
@@ -43,8 +29,8 @@ function App() {
         setShowScrollToTop(false);
       }
 
-      // Auto-minimize categories bar when scrolling down
-      if (window.scrollY > 50) {
+      // Auto-minimize categories bar when user scrolls down past products
+      if (window.scrollY > 120) {
         const isMobile = window.innerWidth <= 768;
         if (isMobile || !isHoveredRef.current) {
           setIsCategoryHovered(false);
@@ -377,20 +363,17 @@ function App() {
     setSearchQuery('');
     setSelectedProduct(null);
     setVisibleCount(24);
-    setIsCategoryHovered(true);
+    setIsCategoryHovered(false);
   };
 
 
   // Check if we are searching (searching forces grid view of products across all categories)
   const isSearching = searchQuery.length > 0;
 
-  // Categories are expanded / maximized when no category is selected & not searching, or when hovered/autoexpanded
-  const isCategoriesMaximized = (!selectedCategory && !isSearching) || isCategoryHovered || isCategoryAutoExpanded;
-
   return (
     <div className="app-container">
       {/* Header */}
-      <header className={`app-header ${isCategoriesMaximized ? 'categories-expanded' : ''}`}>
+      <header className={`app-header ${isCategoryHovered ? 'categories-expanded' : ''}`}>
         <div className="header-top">
           <div className="logo-container" style={{ cursor: 'pointer' }} onClick={handleReset}>
             <img src="/assets/logo.png" alt="Bel Colore" className="logo-image" />
@@ -498,19 +481,14 @@ function App() {
 
           {/* Categories Carousel / Slider */}
           <div 
-            className={`categories-carousel-container ${selectedCategory !== null || isSearching ? 'minimized' : ''} ${(!selectedCategory && !isSearching) || isCategoryHovered || isCategoryAutoExpanded ? 'expanded' : ''}`}
+            className={`categories-carousel-container ${selectedCategory !== null || isSearching ? 'minimized' : ''} ${(!selectedCategory && !isSearching) || isCategoryHovered ? 'expanded' : ''}`}
             onMouseEnter={() => (selectedCategory !== null || isSearching) && setIsCategoryHovered(true)}
             onMouseLeave={() => (selectedCategory !== null || isSearching) && setIsCategoryHovered(false)}
-            onTouchStart={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(1000)}
-            onTouchMove={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(1000)}
-            onTouchEnd={() => (selectedCategory !== null || isSearching) && triggerCategoryAutoExpand(1000)}
+            onTouchStart={() => (selectedCategory !== null || isSearching) && setIsCategoryHovered(true)}
           >
             <button 
               className="carousel-arrow left" 
-              onClick={() => {
-                handleScroll('left');
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1000);
-              }}
+              onClick={() => handleScroll('left')}
             >
               <ChevronLeft size={24} />
             </button>
@@ -518,23 +496,11 @@ function App() {
             <div 
               className="categories-slider" 
               ref={sliderRef}
-              onMouseDown={(e) => {
-                handleMouseDown(e);
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1000);
-              }}
+              onMouseDown={handleMouseDown}
               onMouseLeave={handleMouseLeave}
-              onMouseUp={(e) => {
-                handleMouseUp(e);
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1000);
-              }}
-              onMouseMove={(e) => {
-                handleMouseMove(e);
-                if (isDown.current && (selectedCategory !== null || isSearching)) triggerCategoryAutoExpand(1000);
-              }}
-              onScroll={() => {
-                checkScroll();
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1000);
-              }}
+              onMouseUp={handleMouseUp}
+              onMouseMove={handleMouseMove}
+              onScroll={checkScroll}
             >
 
               {/* Categorias Dinâmicas */}
@@ -547,7 +513,6 @@ function App() {
                     setSelectedCategory(cat);
                     setSearchQuery('');
                     setIsCategoryHovered(false);
-                    triggerCategoryAutoExpand(1000); // Fica maximizado por 1s após o toque/interação
                   }}
                 >
                   <div className="category-image-wrapper">
@@ -565,10 +530,7 @@ function App() {
 
             <button 
               className="carousel-arrow right" 
-              onClick={() => {
-                handleScroll('right');
-                if (selectedCategory !== null || isSearching) triggerCategoryAutoExpand(1000);
-              }}
+              onClick={() => handleScroll('right')}
             >
               <ChevronRight size={24} />
             </button>
