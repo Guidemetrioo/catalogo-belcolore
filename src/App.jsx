@@ -384,10 +384,13 @@ function App() {
   // Check if we are searching (searching forces grid view of products across all categories)
   const isSearching = searchQuery.length > 0;
 
+  // Categories are expanded / maximized when no category is selected & not searching, or when hovered/autoexpanded
+  const isCategoriesMaximized = (!selectedCategory && !isSearching) || isCategoryHovered || isCategoryAutoExpanded;
+
   return (
     <div className="app-container">
       {/* Header */}
-      <header className="app-header">
+      <header className={`app-header ${isCategoriesMaximized ? 'categories-expanded' : ''}`}>
         <div className="header-top">
           <div className="logo-container" style={{ cursor: 'pointer' }} onClick={handleReset}>
             <img src="/assets/logo.png" alt="Bel Colore" className="logo-image" />
