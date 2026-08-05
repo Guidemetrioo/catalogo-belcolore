@@ -1393,6 +1393,257 @@ body {
   box-shadow: 0 4px 12px rgba(205, 155, 98, 0.2);
 }
 
+/* Admin Stats Row */
+.admin-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.admin-stat-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-hairline);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  box-shadow: var(--shadow-subtle);
+  transition: var(--transition-smooth);
+}
+
+.admin-stat-card:hover {
+  border-color: var(--accent-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(205, 155, 98, 0.12);
+}
+
+.admin-stat-number {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  line-height: 1;
+}
+
+.admin-stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Admin Sync Card */
+.admin-sync-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.admin-drive-icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border-hairline);
+  flex-shrink: 0;
+}
+
+/* Admin Actions Row */
+.admin-actions-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+/* Sync Button */
+.sync-drive-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: linear-gradient(135deg, var(--accent-gold) 0%, #b8842a 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.85rem 1.6rem;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  box-shadow: 0 4px 14px rgba(205, 155, 98, 0.3);
+  letter-spacing: 0.02em;
+}
+
+.sync-drive-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d4a44f 0%, var(--accent-gold) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(205, 155, 98, 0.4);
+}
+
+.sync-drive-btn:disabled,
+.sync-drive-btn.loading {
+  opacity: 0.75;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Open Drive Link Button */
+.open-drive-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-hairline);
+  border-radius: 10px;
+  padding: 0.85rem 1.4rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  text-decoration: none;
+}
+
+.open-drive-btn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  background: rgba(205, 155, 98, 0.06);
+  transform: translateY(-1px);
+}
+
+/* Sync Status Banner */
+.sync-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 1.25rem;
+  animation: slideInDown 0.25s ease-out;
+}
+
+.sync-status-banner.loading {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #3b82f6;
+}
+
+.sync-status-banner.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  color: #16a34a;
+}
+
+.sync-status-banner.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #dc2626;
+}
+
+/* Admin hint */
+.admin-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted, var(--text-secondary));
+  line-height: 1.6;
+  margin: 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-hairline);
+}
+
+/* Reauth / Fix instructions panel */
+.reauth-instructions {
+  margin-top: 1.5rem;
+  background: rgba(251, 191, 36, 0.07);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  animation: slideInDown 0.3s ease-out;
+}
+
+.reauth-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin: 0 0 1rem;
+}
+
+.reauth-steps {
+  margin: 0 0 1rem;
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.reauth-steps li {
+  padding-left: 0.2rem;
+}
+
+.reauth-link {
+  color: var(--accent-gold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+
+.reauth-link:hover {
+  opacity: 0.8;
+}
+
+.reauth-note {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+/* Spin animation for loading icons */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@media (max-width: 640px) {
+  .admin-stats-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .admin-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .sync-drive-btn,
+  .open-drive-btn {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
 /* Instructions */
 .persistence-instructions {
   background-color: var(--bg-secondary);

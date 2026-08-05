@@ -1,7 +1,7 @@
-import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, UploadCloud, Download, Trash2, Plus, ArrowLeft, Lock, Eye, EyeOff } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, RefreshCw, ExternalLink, ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import productsData from './data/products.json';
 import categoryCoversData from './data/category_covers.json';
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -49,40 +49,110 @@ function App() {
     });
   };
 
-  // URL do seu Google Apps Script publicado como Web App
-  // Substitua este link pelo link gerado quando você publicar o script no Google Drive
-  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbwraFm5Y6iyMZ52bzWkMa_Kw7169iq9coQRnijucSfGBSAt0yzeBjTlP0c6rfQDAxOT/exec";
+  // URL do Google Apps Script publicado como Web App
+  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbznSFNeB2Bghs-mpM3ET_HnnC46PCkA3fgMqVrbF96xnA7oFCwmXiKrR38KM4M1i7mU/exec";
 
-  // Database local state with cache (Stale-While-Revalidate pattern)
+  // Sync status state
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
+  const [syncMessage, setSyncMessage] = useState('');
+  const [needsReauth, setNeedsReauth] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(() => {
+    return localStorage.getItem('belcolore_last_sync') || null;
+  });
+
+
+  // Database local state - sempre começa com o JSON estático (fonte verdadeira)
   const [productsList, setProductsList] = useState(() => {
     try {
       const cached = localStorage.getItem('belcolore_products');
-      return cached ? JSON.parse(cached) : productsData;
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        // Só usa o cache se tiver dados válidos e for mais recente que o JSON estático
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+      return productsData;
     } catch (e) {
       return productsData;
     }
   });
 
-  // Fetch updated catalog in background
-  useEffect(() => {
-    const fetchLatestProducts = async () => {
-      // Se ainda for a URL de placeholder, não executa o fetch
-      if (GOOGLE_DRIVE_API_URL.includes("AKfycbyWfB6u2g_h1Y3bX8Xn3Mh5D7oY8Z9aBcDeFgHiJkLmNoPqRsTuVwXyZ")) {
-        return;
-      }
-      try {
-        const res = await fetch(GOOGLE_DRIVE_API_URL);
-        if (!res.ok) throw new Error("Erro ao buscar catálogo do Google Drive");
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setProductsList(data);
-          localStorage.setItem('belcolore_products', JSON.stringify(data));
+  // Função de sincronização com o Google Drive (usada no boot e no botão manual)
+  const syncWithDrive = useCallback(async (isManual = false) => {
+    if (isManual) {
+      setSyncStatus('loading');
+      setSyncMessage('Conectando ao Google Drive...');
+    }
+    try {
+      // Adiciona timestamp para evitar cache do navegador
+      const url = `${GOOGLE_DRIVE_API_URL}?t=${Date.now()}`;
+      const res = await fetch(url);
+
+      // Verifica se o script retornou HTML (página de login do Google)
+      // em vez de JSON — isso significa que o script não está publicado como público
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) {
+        const html = await res.text();
+        if (html.includes('accounts.google') || html.includes('signin') || html.includes('login')) {
+          if (isManual) {
+            setSyncStatus('error');
+            setSyncMessage('⚠️ O Google Apps Script precisa ser republicado como público. Veja as instruções abaixo.');
+            setNeedsReauth(true);
+            setTimeout(() => setSyncStatus('idle'), 15000);
+          }
+          return;
         }
-      } catch (err) {
-        console.error("Falha ao sincronizar com Google Drive em segundo plano:", err);
       }
-    };
-    fetchLatestProducts();
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (Array.isArray(data) && data.length > 0) {
+        const prevCount = productsList.length;
+        setProductsList(data);
+        // Limpa o cache antigo e salva o novo
+        localStorage.removeItem('belcolore_products');
+        localStorage.setItem('belcolore_products', JSON.stringify(data));
+        const now = new Date().toLocaleString('pt-BR');
+        localStorage.setItem('belcolore_last_sync', now);
+        setLastSyncTime(now);
+        setNeedsReauth(false);
+        const diff = data.length - prevCount;
+        if (isManual) {
+          const diffMsg = diff > 0 ? ` (+${diff} fotos)` : diff < 0 ? ` (${diff} fotos removidas)` : ' (sem alterações)';
+          setSyncStatus('success');
+          setSyncMessage(`Catálogo atualizado com sucesso! ${data.length} itens${diffMsg}`);
+          setTimeout(() => setSyncStatus('idle'), 5000);
+        }
+      } else if (isManual) {
+        setSyncStatus('error');
+        setSyncMessage('O Google Drive retornou uma lista vazia. Verifique o script e a pasta.');
+        setTimeout(() => setSyncStatus('idle'), 7000);
+      }
+    } catch (err) {
+      console.error('Falha ao sincronizar com Google Drive:', err);
+      if (isManual) {
+        // "Failed to fetch" = problema de CORS ou script não acessível
+        const isCors = err.message === 'Failed to fetch' || err.name === 'TypeError';
+        if (isCors) {
+          setSyncStatus('error');
+          setSyncMessage('⚠️ O Google Apps Script precisa ser republicado como público. Veja as instruções abaixo.');
+          setNeedsReauth(true);
+        } else {
+          setSyncStatus('error');
+          setSyncMessage(`Falha na sincronização: ${err.message}. Verifique sua conexão.`);
+        }
+        setTimeout(() => setSyncStatus('idle'), 15000);
+      }
+    }
+  }, [productsList.length]);
+
+
+  // Sincronização automática ao carregar a página (silenciosa)
+  useEffect(() => {
+    syncWithDrive(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Admin View & Password Protection State
@@ -448,29 +518,113 @@ function App() {
                 </div>
               </div>
 
-              <div className="admin-card form-section" style={{ textAlign: 'center', padding: '3.5rem 2rem' }}>
-                <div style={{ color: 'var(--accent-gold)', marginBottom: '1.5rem' }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" viewBox="0 0 16 16" style={{ margin: '0 auto' }}>
-                    <path d="M12.5 13H3.928a1 1 0 0 1-.857-.485L.234 7.643a1 1 0 0 1 0-.986L2.943 1.83a1 1 0 0 1 .857-.484H12.5a1 1 0 0 1 .857.485l2.709 4.829a1 1 0 0 1 0 .986l-2.709 4.83a1 1 0 0 1-.857.484zM3.928 2.343L1.514 6.643l2.414 4.3H12.5l2.414-4.3-2.414-4.3H3.928z"/>
-                  </svg>
+              {/* Stats Row */}
+              <div className="admin-stats-row">
+                <div className="admin-stat-card">
+                  <span className="admin-stat-number">{productsList.length}</span>
+                  <span className="admin-stat-label">Fotos no catálogo</span>
                 </div>
-                <h3 className="card-title" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: '1.2rem', fontSize: '1.4rem' }}>
-                  Catálogo no Google Drive
-                </h3>
-                <p style={{ color: 'var(--text-primary)', fontSize: '0.92rem', lineHeight: '1.6', marginBottom: '2.2rem', maxWidth: '480px', margin: '0 auto 2.2rem' }}>
-                  Este catálogo está integrado diretamente com a sua pasta do Google Drive. 
-                  Para adicionar novas fotos, criar categorias ou remover móveis, basta gerenciar os arquivos diretamente na sua pasta do Drive. As alterações serão refletidas automaticamente no site.
+                <div className="admin-stat-card">
+                  <span className="admin-stat-number">{categories.length}</span>
+                  <span className="admin-stat-label">Categorias ativas</span>
+                </div>
+                <div className="admin-stat-card">
+                  <span className="admin-stat-number">{groupedProducts.length}</span>
+                  <span className="admin-stat-label">Produtos agrupados</span>
+                </div>
+              </div>
+
+              {/* Sync Card */}
+              <div className="admin-card form-section">
+                <div className="admin-sync-header">
+                  <div className="admin-drive-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 87.3 78">
+                      <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                      <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.5c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
+                      <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.65z" fill="#ea4335"/>
+                      <path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                      <path d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                      <path d="M73.4 26.5l-12.6-21.8c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="card-title" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: '0.3rem', fontSize: '1.2rem' }}>Google Drive</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                      {lastSyncTime ? `Última sincronização: ${lastSyncTime}` : 'Nunca sincronizado manualmente'}
+                    </p>
+                  </div>
+                </div>
+
+                <p style={{ color: 'var(--text-primary)', fontSize: '0.92rem', lineHeight: '1.7', marginBottom: '1.8rem' }}>
+                  Quando você adiciona ou remove fotos da pasta do Drive, clique em <strong>Sincronizar Fotos</strong> para atualizar o catálogo instantaneamente. As alterações serão aplicadas sem precisar recarregar a página.
                 </p>
-                <a 
-                  href="https://drive.google.com/drive/u/0/folders/1hnCfnQ9mNqFKzlyOLSbxnMGd-sKsYpdY" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="admin-submit-btn" 
-                  style={{ display: 'inline-flex', textDecoration: 'none', justifyContent: 'center', maxWidth: '300px', margin: '0 auto' }}
-                >
-                  <Settings size={18} style={{ marginRight: '0.5rem' }} />
-                  <span>Abrir Pasta do Google Drive</span>
-                </a>
+
+                {/* Sync status feedback */}
+                {syncStatus !== 'idle' && (
+                  <div className={`sync-status-banner ${syncStatus}`}>
+                    {syncStatus === 'loading' && <Loader size={18} className="spin-icon" />}
+                    {syncStatus === 'success' && <CheckCircle size={18} />}
+                    {syncStatus === 'error' && <AlertCircle size={18} />}
+                    <span>{syncMessage}</span>
+                  </div>
+                )}
+
+                <div className="admin-actions-row">
+                  <button
+                    className={`sync-drive-btn ${syncStatus === 'loading' ? 'loading' : ''}`}
+                    onClick={() => syncWithDrive(true)}
+                    disabled={syncStatus === 'loading'}
+                  >
+                    <RefreshCw size={18} className={syncStatus === 'loading' ? 'spin-icon' : ''} />
+                    <span>{syncStatus === 'loading' ? 'Sincronizando...' : 'Sincronizar Fotos'}</span>
+                  </button>
+
+                  <a
+                    href="https://drive.google.com/drive/u/0/folders/1hnCfnQ9mNqFKzlyOLSbxnMGd-sKsYpdY"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="open-drive-btn"
+                  >
+                    <ExternalLink size={16} />
+                    <span>Abrir Pasta do Drive</span>
+                  </a>
+                </div>
+
+                <p className="admin-hint">
+                  💡 O catálogo sincroniza automaticamente ao abrir o site, mas use o botão acima para forçar uma atualização imediata após gerenciar os arquivos.
+                </p>
+
+                {/* Fix instructions — shown when Apps Script is not public */}
+                {needsReauth && (
+                  <div className="reauth-instructions">
+                    <h4 className="reauth-title">🔧 Como corrigir em 3 passos:</h4>
+                    <ol className="reauth-steps">
+                      <li>
+                        <strong>Abra o Google Apps Script:</strong>{' '}
+                        <a
+                          href="https://script.google.com/home"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="reauth-link"
+                        >
+                          script.google.com/home
+                        </a>
+                        {' '}→ abra o projeto do catálogo Bel Colore.
+                      </li>
+                      <li>
+                        <strong>Clique em "Implantar" → "Gerenciar implantações"</strong>
+                        {' '}→ clique no ícone de lápis (editar).
+                      </li>
+                      <li>
+                        Em <strong>"Quem tem acesso"</strong>, selecione{' '}
+                        <strong>"Qualquer pessoa"</strong> (sem necessidade de login) → clique em <strong>"Implantar"</strong>.
+                      </li>
+                    </ol>
+                    <p className="reauth-note">
+                      Após republicar, clique em <strong>Sincronizar Fotos</strong> novamente.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
