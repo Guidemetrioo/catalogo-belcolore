@@ -1176,6 +1176,34 @@ body {
   transform: rotate(30deg);
 }
 
+/* Sort order button */
+.sort-order-btn {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-hairline);
+  color: var(--text-secondary);
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  flex-shrink: 0;
+}
+
+.sort-order-btn:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.sort-order-btn.active {
+  background-color: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #ffffff;
+}
+
 .admin-panel {
   padding: 1rem 0 3rem;
   animation: fadeIn 0.3s ease-out;

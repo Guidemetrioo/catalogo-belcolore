@@ -1,4 +1,4 @@
-import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, RefreshCw, ExternalLink, ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, RefreshCw, ExternalLink, ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader, ArrowUpAZ, ArrowDownAZ } from 'lucide-react';
 import productsData from './data/products.json';
 import categoryCoversData from './data/category_covers.json';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -8,6 +8,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [visibleCount, setVisibleCount] = useState(24);
+  const [sortOrder, setSortOrder] = useState('default'); // 'default' | 'az' | 'za'
   const [isCategoryHovered, setIsCategoryHovered] = useState(false);
   const isHoveredRef = useRef(false);
 
@@ -50,7 +51,7 @@ function App() {
   };
 
   // URL do Google Apps Script publicado como Web App
-  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbznSFNeB2Bghs-mpM3ET_HnnC46PCkA3fgMqVrbF96xnA7oFCwmXiKrR38KM4M1i7mU/exec";
+  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbw9KiziWx2Yrq8XjrowpZgfR6iDkbrWTlj6G9V5zYXw8ewyclFTfm-yI_5r2unaAIs0Kw/exec";
 
   // Sync status state
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
@@ -412,7 +413,7 @@ function App() {
 
   // Filter products based on category and search query
   const filteredProducts = useMemo(() => {
-    return groupedProducts.filter(product => {
+    const filtered = groupedProducts.filter(product => {
       const matchesCategory = selectedCategory ? product.category === selectedCategory : true;
       const matchesSearch = searchQuery
         ? product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -420,7 +421,13 @@ function App() {
         : true;
       return matchesCategory && matchesSearch;
     });
-  }, [selectedCategory, searchQuery, groupedProducts]);
+    if (sortOrder === 'az') {
+      return [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    } else if (sortOrder === 'za') {
+      return [...filtered].sort((a, b) => b.name.localeCompare(a.name, 'pt-BR'));
+    }
+    return filtered;
+  }, [selectedCategory, searchQuery, groupedProducts, sortOrder]);
 
   // Paginated/limited subset of products for smooth rendering
   const visibleProducts = useMemo(() => {
@@ -488,6 +495,17 @@ function App() {
                 </button>
               )}
             </div>
+
+            <button
+              className={`sort-order-btn ${sortOrder !== 'default' ? 'active' : ''}`}
+              onClick={() => {
+                setSortOrder(prev => prev === 'default' ? 'az' : prev === 'az' ? 'za' : 'default');
+                setVisibleCount(24);
+              }}
+              title={sortOrder === 'az' ? 'Ordenado: A → Z' : sortOrder === 'za' ? 'Ordenado: Z → A' : 'Ordenar A → Z'}
+            >
+              {sortOrder === 'za' ? <ArrowDownAZ size={20} /> : <ArrowUpAZ size={20} />}
+            </button>
 
             <button 
               className={`admin-toggle-btn ${isAdminMode ? 'active' : ''}`}
