@@ -215,7 +215,11 @@ function App() {
     });
   };
 
-  // Group products with the same base name, automatically excluding any product without a photo or broken image
+  // Group products with the same base name
+  // NOTE: failedImages is intentionally NOT in the dependency array here.
+  // We never remove products from the list when an image fails — instead we
+  // just show a placeholder in the card. This prevents the "products disappear"
+  // bug that occurred because every onError re-render triggered a full recompute.
   const groupedProducts = useMemo(() => {
     const groups = {};
     productsList.forEach(p => {
@@ -225,9 +229,6 @@ function App() {
       }
       
       const imgPath = p.image.trim();
-      if (failedImages.has(imgPath)) {
-        return;
-      }
 
       // Strip trailing numeric suffix like " 01", "-01", " - 01", " 1", "-1"
       const baseName = p.name.replace(/[- ]+\d+$/i, '').trim();
@@ -244,23 +245,14 @@ function App() {
           images: []
         };
       }
-      if (!failedImages.has(imgPath) && !groups[key].images.includes(imgPath)) {
+      if (!groups[key].images.includes(imgPath)) {
         groups[key].images.push(imgPath);
       }
     });
 
-    const validGroups = [];
-    Object.values(groups).forEach(group => {
-      const validImages = group.images.filter(img => !failedImages.has(img));
-      if (validImages.length > 0) {
-        group.image = validImages[0];
-        group.images = validImages;
-        validGroups.push(group);
-      }
-    });
-
-    return validGroups;
-  }, [productsList, failedImages]);
+    return Object.values(groups);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productsList]);
 
   // Extract unique categories dynamically
   const categories = useMemo(() => {
@@ -730,12 +722,19 @@ function App() {
                         onClick={() => setSelectedProduct(product)}
                       >
                         <div className="product-image-wrapper">
-                          <img 
-                            src={product.image} 
-                            alt={product.name} 
-                            loading="lazy" 
-                            onError={() => handleImageError(product.image)}
-                          />
+                          {failedImages.has(product.image) ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', color: '#8c837a' }}>
+                              <Grid size={32} />
+                              <span style={{ fontSize: '0.7rem' }}>Sem foto</span>
+                            </div>
+                          ) : (
+                            <img 
+                              src={product.image} 
+                              alt={product.name} 
+                              loading="lazy" 
+                              onError={() => handleImageError(product.image)}
+                            />
+                          )}
                           {product.images && product.images.length > 1 && (
                             <span className="photo-count-badge">
                               {product.images.length} fotos
