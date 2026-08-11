@@ -393,6 +393,7 @@ function App() {
   const startX = useRef(0);
   const scrollLeft = useRef(0);
   const dragDistance = useRef(0);
+  const activeCategoryRef = useRef(null);
 
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -420,6 +421,53 @@ function App() {
       window.removeEventListener('resize', checkScroll);
     };
   }, [categories, selectedCategory, searchQuery, isCategoryHovered]);
+
+  // Scroll slider so the selected category occupies the FIRST visible slot when expanded
+  useEffect(() => {
+    if (!isCategoryHovered) return;
+
+    // ── Why 560 ms? ────────────────────────────────────────────────────────
+    // The CSS transition on .categories-slider (gap, padding, height) is
+    // 0.5 s (500 ms).  If we measure card positions mid-transition the gap
+    // values are wrong and the computed scroll target is off.
+    // We wait 560 ms (transition + small buffer) so the layout is settled.
+    const t = setTimeout(() => {
+      if (!activeCategoryRef.current || !sliderRef.current) return;
+
+      const slider = sliderRef.current;
+      const card   = activeCategoryRef.current;
+
+      // ── Step 1: card's absolute position in the scrollable content ───────
+      // getBoundingClientRect() gives viewport-relative coords; adding the
+      // current scrollLeft converts to content-absolute coords regardless of
+      // which ancestor is the offsetParent.
+      const sliderRect      = slider.getBoundingClientRect();
+      const cardRect        = card.getBoundingClientRect();
+      const cardAbsoluteLeft = slider.scrollLeft + (cardRect.left - sliderRect.left);
+
+      // ── Step 2: subtract the slider's left padding ───────────────────────
+      // The slider has padding-left (e.g. 3 rem).  The "first slot" is NOT
+      // at the slider's absolute left edge — it is at (left edge + paddingLeft).
+      // Scrolling to cardAbsoluteLeft - paddingLeft places the card at that
+      // first-slot visual position, which is exactly what we want.
+      const sliderPaddingLeft = parseFloat(getComputedStyle(slider).paddingLeft) || 0;
+      const desiredScrollLeft  = cardAbsoluteLeft - sliderPaddingLeft;
+
+      // ── Step 3: edge-case guard (category near end of list) ──────────────
+      // If there are not enough items after the selected one to fill the row
+      // from the first slot, clamp to the maximum scroll value so the tail
+      // of the list is shown (selected category visible, no empty gap on right).
+      const maxScrollLeft    = slider.scrollWidth - slider.clientWidth;
+      const targetScrollLeft = Math.min(Math.max(0, desiredScrollLeft), maxScrollLeft);
+
+      slider.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
+
+      // Refresh left/right arrow visibility after the scroll finishes
+      setTimeout(checkScroll, 400);
+    }, 560);
+
+    return () => clearTimeout(t);
+  }, [isCategoryHovered, selectedCategory]);
 
   const handleScroll = (direction) => {
     if (sliderRef.current) {
@@ -915,6 +963,7 @@ function App() {
               {categories.map((cat) => (
                 <button
                   key={cat}
+                  ref={selectedCategory === cat ? activeCategoryRef : null}
                   className={`category-card ${selectedCategory === cat ? 'selected' : ''}`}
                   onClick={(e) => {
                     if (dragDistance.current > 8) return; // Ignores drag
