@@ -1,4 +1,4 @@
-import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, RefreshCw, ExternalLink, ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader, ArrowUpAZ, ArrowDownAZ } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, RefreshCw, ExternalLink, ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader, ArrowUpAZ, ArrowDownAZ, ImageIcon, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import productsData from './data/products.json';
 import categoryCoversData from './data/category_covers.json';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -163,6 +163,8 @@ function App() {
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // Admin active tab: 'covers' | 'drive'
+  const [adminTab, setAdminTab] = useState('covers');
 
   const handleAdminToggle = () => {
     if (isAdminMode) {
@@ -270,9 +272,89 @@ function App() {
   }, [groupedProducts]);
 
   // Pre-selected background-free/studio cover images for each category
-  const categoryCovers = useMemo(() => {
-    return categoryCoversData;
-  }, []);
+  // Loaded from localStorage first (custom overrides), with fallback to JSON static data
+  const [categoryCovers, setCategoryCovers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('belcolore_category_covers');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Merge: saved overrides take priority, fill missing with defaults
+        return { ...categoryCoversData, ...parsed };
+      }
+    } catch (e) { /* ignore */ }
+    return { ...categoryCoversData };
+  });
+
+  // Admin: which category's cover editor is currently open
+  const [editingCoverCategory, setEditingCoverCategory] = useState(null);
+  // Admin: search/filter within the cover image picker
+  const [coverPickerSearch, setCoverPickerSearch] = useState('');
+
+  // Set a new cover for a category and persist to localStorage
+  const handleSetCategoryCover = (category, imageUrl) => {
+    setCategoryCovers(prev => {
+      const updated = { ...prev, [category]: imageUrl };
+      try {
+        // Only save the overrides that differ from defaults
+        const overrides = {};
+        Object.keys(updated).forEach(cat => {
+          if (updated[cat] !== categoryCoversData[cat]) {
+            overrides[cat] = updated[cat];
+          }
+        });
+        localStorage.setItem('belcolore_category_covers', JSON.stringify(overrides));
+      } catch (e) { /* ignore */ }
+      return updated;
+    });
+  };
+
+  // Reset all covers to defaults
+  const handleResetAllCovers = () => {
+    setCategoryCovers({ ...categoryCoversData });
+    localStorage.removeItem('belcolore_category_covers');
+    setEditingCoverCategory(null);
+  };
+
+  // Export updated category_covers.json as a file download
+  const handleExportCoversJson = () => {
+    const json = JSON.stringify(categoryCovers, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'category_covers.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Check if any cover differs from defaults
+  const hasCustomCovers = useMemo(() => {
+    return Object.keys(categoryCoversData).some(
+      cat => categoryCovers[cat] !== categoryCoversData[cat]
+    );
+  }, [categoryCovers]);
+
+  // Get all unique images for a given category from productsList
+  const getImagesForCategory = useCallback((category) => {
+    const seen = new Set();
+    const images = [];
+    productsList.forEach(p => {
+      if (
+        p.category === category &&
+        p.image &&
+        typeof p.image === 'string' &&
+        p.image.trim() &&
+        !p.image.includes('placeholder')
+      ) {
+        const img = p.image.trim();
+        if (!seen.has(img)) {
+          seen.add(img);
+          images.push(img);
+        }
+      }
+    });
+    return images;
+  }, [productsList]);
 
   // Reset active image when selected product changes
   useEffect(() => {
@@ -523,8 +605,8 @@ function App() {
                   <span>Voltar ao Catálogo</span>
                 </button>
                 <div>
-                  <h2 className="admin-title">Painel de Integração</h2>
-                  <p className="admin-subtitle">Sincronização direta com o Google Drive.</p>
+                  <h2 className="admin-title">Painel Administrativo</h2>
+                  <p className="admin-subtitle">Gerencie capas de categorias e sincronização com o Google Drive.</p>
                 </div>
               </div>
 
@@ -544,7 +626,187 @@ function App() {
                 </div>
               </div>
 
-              {/* Sync Card */}
+              {/* Tab Navigation */}
+              <div className="admin-tabs">
+                <button
+                  className={`admin-tab-btn ${adminTab === 'covers' ? 'active' : ''}`}
+                  onClick={() => setAdminTab('covers')}
+                >
+                  <ImageIcon size={17} />
+                  <span>Capas das Categorias</span>
+                  {hasCustomCovers && <span className="admin-tab-dot" />}
+                </button>
+                <button
+                  className={`admin-tab-btn ${adminTab === 'drive' ? 'active' : ''}`}
+                  onClick={() => setAdminTab('drive')}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="currentColor" viewBox="0 0 87.3 78" style={{flexShrink:0}}>
+                    <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                    <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.5c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
+                    <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.65z" fill="#ea4335"/>
+                    <path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                    <path d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                    <path d="M73.4 26.5l-12.6-21.8c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                  </svg>
+                  <span>Integração Drive</span>
+                  {syncStatus === 'loading' && <Loader size={13} className="spin-icon" style={{marginLeft:'2px'}} />}
+                  {syncStatus === 'error' && <span className="admin-tab-dot error" />}
+                </button>
+              </div>
+
+              {/* ===== CATEGORY COVERS SECTION ===== */}
+              {adminTab === 'covers' && (
+              <div className="admin-card form-section admin-covers-section">
+                <div className="admin-covers-header">
+                  <div className="admin-covers-header-left">
+                    <div className="admin-covers-icon">
+                      <ImageIcon size={28} />
+                    </div>
+                    <div>
+                      <h3 className="card-title" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: '0.3rem', fontSize: '1.2rem' }}>Capas das Categorias</h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                        {hasCustomCovers ? '✏️ Você tem capas personalizadas salvas.' : 'Clique em uma categoria para trocar a foto de capa.'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="admin-covers-actions">
+                    <button
+                      className="export-covers-btn"
+                      onClick={handleExportCoversJson}
+                      title="Baixar category_covers.json atualizado"
+                    >
+                      <Download size={16} />
+                      <span>Exportar JSON</span>
+                    </button>
+                    {hasCustomCovers && (
+                      <button
+                        className="reset-covers-btn"
+                        onClick={() => {
+                          if (window.confirm('Resetar todas as capas para o padrão original?')) {
+                            handleResetAllCovers();
+                          }
+                        }}
+                        title="Restaurar capas originais"
+                      >
+                        <RefreshCw size={16} />
+                        <span>Resetar</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <p style={{ color: 'var(--text-primary)', fontSize: '0.92rem', lineHeight: '1.7', marginBottom: '1.5rem' }}>
+                  Selecione uma categoria abaixo para escolher qual foto aparece como capa no menu principal. As alterações ficam salvas automaticamente neste navegador.
+                </p>
+
+                {/* Category covers grid */}
+                <div className="admin-covers-grid">
+                  {categories.map((cat) => {
+                    const isEditing = editingCoverCategory === cat;
+                    const currentCover = categoryCovers[cat];
+                    const allImages = getImagesForCategory(cat);
+                    const filtered = coverPickerSearch && isEditing
+                      ? allImages.filter(img => img.toLowerCase().includes(coverPickerSearch.toLowerCase()))
+                      : allImages;
+                    const isCustom = categoryCoversData[cat] !== currentCover;
+
+                    return (
+                      <div key={cat} className={`admin-cover-card ${isEditing ? 'editing' : ''}`}>
+                        {/* Category header with current cover */}
+                        <button
+                          className="admin-cover-card-header"
+                          onClick={() => {
+                            setEditingCoverCategory(isEditing ? null : cat);
+                            setCoverPickerSearch('');
+                          }}
+                        >
+                          <div className="admin-cover-thumbnail-wrap">
+                            {currentCover ? (
+                              <img src={currentCover} alt={cat} className="admin-cover-thumbnail" />
+                            ) : (
+                              <div className="admin-cover-thumbnail-placeholder">
+                                <Grid size={24} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="admin-cover-card-info">
+                            <span className="admin-cover-cat-name">{cat}</span>
+                            <span className="admin-cover-cat-count">{categoryCounts[cat]} itens • {allImages.length} fotos</span>
+                            {isCustom && <span className="admin-cover-custom-badge">✏️ Personalizada</span>}
+                          </div>
+                          <div className="admin-cover-card-chevron">
+                            {isEditing ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                          </div>
+                        </button>
+
+                        {/* Expandable image picker */}
+                        {isEditing && (
+                          <div className="admin-cover-picker">
+                            <div className="admin-cover-picker-search-wrap">
+                              <Search size={15} />
+                              <input
+                                type="text"
+                                className="admin-cover-picker-search"
+                                placeholder={`Buscar em ${allImages.length} fotos...`}
+                                value={coverPickerSearch}
+                                onChange={e => setCoverPickerSearch(e.target.value)}
+                                autoFocus
+                              />
+                              {coverPickerSearch && (
+                                <button
+                                  className="admin-cover-picker-clear"
+                                  onClick={() => setCoverPickerSearch('')}
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                            {isCustom && (
+                              <button
+                                className="admin-cover-reset-btn"
+                                onClick={() => handleSetCategoryCover(cat, categoryCoversData[cat])}
+                              >
+                                <RefreshCw size={13} /> Restaurar capa original desta categoria
+                              </button>
+                            )}
+                            <div className="admin-cover-images-grid">
+                              {filtered.length === 0 ? (
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '1rem 0' }}>Nenhuma foto encontrada.</p>
+                              ) : filtered.map((img) => (
+                                <button
+                                  key={img}
+                                  className={`admin-cover-img-btn ${currentCover === img ? 'selected' : ''}`}
+                                  onClick={() => {
+                                    handleSetCategoryCover(cat, img);
+                                    setEditingCoverCategory(null);
+                                    setCoverPickerSearch('');
+                                  }}
+                                  title={img.split('/').pop()}
+                                >
+                                  <img src={img} alt="" loading="lazy" />
+                                  {currentCover === img && (
+                                    <div className="admin-cover-img-selected-badge">
+                                      <CheckCircle size={16} />
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="admin-hint" style={{ marginTop: '1.5rem' }}>
+                  💡 As capas são salvas neste navegador. Para aplicar permanentemente no site, clique em <strong>Exportar JSON</strong> e substitua o arquivo <code>src/data/category_covers.json</code> no projeto.
+                </p>
+              </div>
+              )}
+
+              {/* ===== GOOGLE DRIVE SYNC CARD ===== */}
+              {adminTab === 'drive' && (
               <div className="admin-card form-section">
                 <div className="admin-sync-header">
                   <div className="admin-drive-icon">
@@ -636,6 +898,7 @@ function App() {
                   </div>
                 )}
               </div>
+              )}
             </div>
           ) : (
             <>

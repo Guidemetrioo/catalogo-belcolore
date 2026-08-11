@@ -1,13 +1,12 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 sync_catalog.py — Sincronizador Completo do Catalogo Bel Colore
 ================================================================
-Executa a sincronizacao completa entre o Google Drive e o catalogo local:
-  1. Busca a lista atual de arquivos via Google Apps Script
-  2. Compara com os arquivos locais em public/assets/catalog/
+Drive e a fonte de verdade. O script:
+  1. Busca todos os itens do Drive via Google Apps Script (com retry)
+  2. Apaga localmente tudo que nao existe mais no Drive
   3. Baixa imagens novas e converte para WebP
-  4. Remove imagens que foram deletadas do Drive
-  5. Reconstroi src/data/products.json
+  4. Reconstroi src/data/products.json
 
 COMO USAR:
   python sync_catalog.py
@@ -18,9 +17,11 @@ DEPENDENCIAS:
 
 import os
 import sys
+import re
 import json
 import time
 import shutil
+import unicodedata
 import requests
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -31,11 +32,11 @@ GOOGLE_APPS_SCRIPT_URL = (
     "AKfycbznSFNeB2Bghs-mpM3ET_HnnC46PCkA3fgMqVrbF96xnA7oFCwmXiKrR38KM4M1i7mU"
     "/exec"
 )
-CATALOG_DIR = "public/assets/catalog"
+CATALOG_DIR   = "public/assets/catalog"
 PRODUCTS_JSON = "src/data/products.json"
-MAX_WIDTH = 600
-WEBP_QUALITY = 75
-MAX_WORKERS = 20
+MAX_WIDTH     = 800
+WEBP_QUALITY  = 80
+MAX_WORKERS   = 10
 DRIVE_FOLDER_URL = "https://drive.google.com/drive/u/0/folders/1hnCfnQ9mNqFKzlyOLSbxnMGd-sKsYpdY"
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -47,29 +48,122 @@ def log(msg):
     print(msg, flush=True)
 
 
-def fetch_drive_catalog():
+# ─── Utilitarios ──────────────────────────────────────────────────────────────
+
+def slugify(text):
+    """Remove acentos e caracteres especiais, mantendo o nome legivel."""
+    text = unicodedata.normalize("NFKD", str(text))
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = re.sub(r"[^\w\s\-]", "", text, flags=re.UNICODE)
+    text = re.sub(r"[\s]+", "-", text.strip())
+    return text.lower()
+
+
+def extract_drive_file_id(url):
+    """Extrai o file ID do Drive de varios formatos de URL."""
+    if not url:
+        return None
+    # https://lh3.googleusercontent.com/d/FILE_ID
+    m = re.search(r"googleusercontent\.com/d/([A-Za-z0-9_\-]+)", url)
+    if m:
+        return m.group(1)
+    # https://drive.google.com/uc?id=FILE_ID
+    m = re.search(r"[?&]id=([A-Za-z0-9_\-]+)", url)
+    if m:
+        return m.group(1)
+    # https://drive.google.com/file/d/FILE_ID/
+    m = re.search(r"/file/d/([A-Za-z0-9_\-]+)", url)
+    if m:
+        return m.group(1)
+    return None
+
+
+def make_download_url(file_id):
+    return f"https://drive.google.com/uc?export=download&id={file_id}"
+
+
+def make_local_image_path(category, subcategory, name):
+    """Gera o caminho local da imagem a partir de categoria e nome."""
+    parts = [category]
+    if subcategory:
+        parts += subcategory.split("/")
+    parts = [p for p in parts if p]
+    dir_path = "/".join(parts)
+    filename = slugify(name) + ".webp"
+    return f"/assets/catalog/{dir_path}/{filename}"
+
+
+def normalize_item(item, index):
+    """
+    Normaliza um item do Apps Script para o formato padrao:
+    Suporta tanto image=URL-do-Google quanto image=/assets/catalog/...
+    """
+    name     = (item.get("name") or "").strip()
+    category = (item.get("category") or "").strip()
+    if not name or not category:
+        return None
+
+    subcategory  = (item.get("subcategory") or "").strip()
+    raw_image    = item.get("image", "")
+    raw_url      = item.get("url") or item.get("driveUrl") or item.get("downloadUrl") or ""
+
+    # Caso 1: image e um caminho local e ha url de download separada
+    if raw_image.startswith("/assets/catalog/") and raw_url.startswith("http"):
+        return {
+            "id":           item.get("id", str(index + 1)),
+            "name":         name,
+            "category":     category,
+            "image":        raw_image,
+            "_download_url": raw_url,
+        }
+
+    # Caso 2: image e uma URL do Google — extrair file ID
+    file_id = None
+    if raw_image.startswith("http"):
+        file_id = extract_drive_file_id(raw_image)
+    if not file_id and raw_url.startswith("http"):
+        file_id = extract_drive_file_id(raw_url)
+
+    if not file_id:
+        return None
+
+    local_image = make_local_image_path(category, subcategory, name)
+    return {
+        "id":           item.get("id", str(index + 1)),
+        "name":         name,
+        "category":     category,
+        "image":        local_image,
+        "_download_url": make_download_url(file_id),
+    }
+
+
+# ─── Fetch Drive ──────────────────────────────────────────────────────────────
+
+def fetch_drive_catalog(max_retries=3):
     log("Buscando catalogo do Google Drive...")
-    try:
-        url = f"{GOOGLE_APPS_SCRIPT_URL}?t={int(time.time())}"
-        res = requests.get(url, timeout=60)
-        res.raise_for_status()
-        data = res.json()
-        if not isinstance(data, list):
-            raise ValueError(f"Resposta inesperada do script: {type(data)}")
-        log(f"   OK: {len(data)} itens recebidos do Drive")
-        return data
-    except Exception as e:
-        log(f"   FALHA ao buscar catalogo: {e}")
-        sys.exit(1)
+    for attempt in range(1, max_retries + 1):
+        try:
+            url = f"{GOOGLE_APPS_SCRIPT_URL}?t={int(time.time())}"
+            log(f"   Tentativa {attempt}/{max_retries}...")
+            r = requests.get(url, timeout=120)
+            r.raise_for_status()
+            data = r.json()
+            if not isinstance(data, list) or not data:
+                raise ValueError(f"Resposta invalida: {type(data)}, len={len(data) if isinstance(data, list) else 'N/A'}")
+            log(f"   OK: {len(data)} itens recebidos do Drive")
+            return data
+        except Exception as e:
+            log(f"   FALHA tentativa {attempt}: {e}")
+            if attempt < max_retries:
+                wait = 20 * attempt
+                log(f"   Aguardando {wait}s antes de tentar novamente...")
+                time.sleep(wait)
+
+    log("ERRO FATAL: Nao foi possivel buscar o catalogo apos 3 tentativas.")
+    sys.exit(1)
 
 
-def load_local_products():
-    try:
-        with open(PRODUCTS_JSON, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
-
+# ─── Imagens locais ───────────────────────────────────────────────────────────
 
 def get_local_image_paths():
     paths = set()
@@ -77,15 +171,18 @@ def get_local_image_paths():
         return paths
     for root, _, files in os.walk(CATALOG_DIR):
         for fname in files:
-            full = os.path.join(root, fname)
-            rel = full.replace("\\", "/")
-            if rel.startswith("public/"):
-                rel = rel[len("public"):]
-            paths.add(rel)
+            if not fname.lower().endswith((".webp", ".jpg", ".jpeg", ".png")):
+                continue
+            full = os.path.join(root, fname).replace("\\", "/")
+            if "public/" in full:
+                rel = "/" + full.split("public/", 1)[1]
+                paths.add(rel)
     return paths
 
 
-def download_and_save(item, index):
+# ─── Download & Convert ───────────────────────────────────────────────────────
+
+def download_and_save(item):
     try:
         from PIL import Image
     except ImportError:
@@ -94,24 +191,23 @@ def download_and_save(item, index):
 
     image_path = item.get("image", "")
     if not image_path or not image_path.startswith("/assets/catalog/"):
-        return None
+        return False
 
     local_path = "public" + image_path
+    if os.path.exists(local_path):
+        return True
+
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
-    if os.path.exists(local_path):
-        return item
+    url = item.get("_download_url") or item.get("url") or item.get("driveUrl") or item.get("downloadUrl")
+    if not url or not url.startswith("http"):
+        return False
 
-    url = item.get("url") or item.get("driveUrl") or item.get("downloadUrl")
-    if not url or url.startswith("/assets/"):
-        return None
-
-    retries = 3
-    delay = 2
-    for attempt in range(retries):
+    delay = 3
+    for attempt in range(4):
         try:
-            r = requests.get(url, timeout=30)
-            if r.status_code == 200:
+            r = requests.get(url, timeout=45, allow_redirects=True)
+            if r.status_code == 200 and len(r.content) > 500:
                 img = Image.open(BytesIO(r.content))
                 if img.mode in ("RGBA", "LA", "P"):
                     img = img.convert("RGB")
@@ -122,7 +218,7 @@ def download_and_save(item, index):
                         Image.Resampling.LANCZOS,
                     )
                 img.save(local_path, "WEBP", quality=WEBP_QUALITY)
-                return item
+                return True
             elif r.status_code in (429, 503):
                 time.sleep(delay)
                 delay *= 2
@@ -131,92 +227,117 @@ def download_and_save(item, index):
         except Exception:
             time.sleep(delay)
             delay *= 2
-    return None
+    return False
 
+
+# ─── Remocao de orfaos ────────────────────────────────────────────────────────
 
 def remove_orphaned_images(drive_paths, local_paths):
     orphans = local_paths - drive_paths
     if not orphans:
-        log("   OK: Nenhuma imagem orfã para remover")
+        log("   OK: Nenhuma imagem orfa para remover")
         return 0
 
-    log(f"   {len(orphans)} imagens removidas do Drive — apagando localmente...")
+    log(f"   {len(orphans)} imagens que nao existem no Drive — apagando localmente...")
     removed = 0
     for path in sorted(orphans):
         local_file = "public" + path
         try:
             os.remove(local_file)
-            log(f"      - Removido: {path}")
             removed += 1
         except FileNotFoundError:
             pass
 
-    for cat_dir in os.listdir(CATALOG_DIR):
-        full_cat = os.path.join(CATALOG_DIR, cat_dir)
-        if os.path.isdir(full_cat) and not os.listdir(full_cat):
-            shutil.rmtree(full_cat)
-            log(f"      - Pasta vazia removida: {cat_dir}/")
+    # Remove pastas vazias
+    for root, dirs, files in os.walk(CATALOG_DIR, topdown=False):
+        if not os.listdir(root) and root != CATALOG_DIR:
+            shutil.rmtree(root, ignore_errors=True)
+
+    log(f"   OK: {removed} imagens removidas")
     return removed
 
 
+# ─── Salvar JSON ──────────────────────────────────────────────────────────────
+
 def save_products_json(products):
     os.makedirs(os.path.dirname(PRODUCTS_JSON), exist_ok=True)
+    output = [
+        {k: v for k, v in p.items() if not k.startswith("_")}
+        for p in products
+    ]
     with open(PRODUCTS_JSON, "w", encoding="utf-8") as f:
-        json.dump(products, f, ensure_ascii=False, indent=2)
-    log(f"   OK: {PRODUCTS_JSON} atualizado com {len(products)} itens")
+        json.dump(output, f, ensure_ascii=False, indent=2)
+    log(f"   OK: {PRODUCTS_JSON} atualizado com {len(output)} itens")
 
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
     log("=" * 60)
     log("  Sincronizador Bel Colore — Google Drive")
+    log("  Drive e a FONTE DE VERDADE")
     log("=" * 60)
     log(f"  Pasta do Drive: {DRIVE_FOLDER_URL}")
     log("")
 
-    drive_products = fetch_drive_catalog()
-    if not drive_products:
-        log("ERRO: Lista vazia retornada. Abortando para evitar apagar o catalogo.")
+    # 1. Buscar catalogo do Drive
+    raw_items = fetch_drive_catalog()
+
+    # 2. Normalizar itens (suporta formato antigo e novo do Apps Script)
+    log("\nNormalizando itens...")
+    drive_items = []
+    skipped = 0
+    for i, item in enumerate(raw_items):
+        normalized = normalize_item(item, i)
+        if normalized:
+            drive_items.append(normalized)
+        else:
+            skipped += 1
+
+    log(f"   {len(drive_items)} itens validos ({skipped} ignorados sem URL de download)")
+
+    if not drive_items:
+        log("ERRO: Nenhum item valido. Abortando.")
         sys.exit(1)
 
-    drive_paths = {p.get("image", "") for p in drive_products if p.get("image")}
-
+    drive_paths = {p["image"] for p in drive_items}
     local_paths = get_local_image_paths()
-    local_products = load_local_products()
 
     log(f"\nEstado atual:")
-    log(f"   Drive:  {len(drive_products)} itens / {len(drive_paths)} imagens unicas")
-    log(f"   Local:  {len(local_products)} itens / {len(local_paths)} imagens em disco")
+    log(f"   Drive:  {len(drive_items)} itens / {len(drive_paths)} imagens unicas")
+    log(f"   Local:  {len(local_paths)} imagens em disco")
 
-    new_paths = drive_paths - local_paths
-    items_to_download = [p for p in drive_products if p.get("image") in new_paths]
+    items_to_download = [p for p in drive_items if p["image"] not in local_paths]
+    items_to_remove   = local_paths - drive_paths
 
-    log(f"\nImagens novas a baixar: {len(items_to_download)}")
-    log(f"Imagens a remover: {len(local_paths - drive_paths)}")
+    log(f"\n   -> Imagens a baixar:  {len(items_to_download)}")
+    log(f"   -> Imagens a remover: {len(items_to_remove)}")
 
-    if not items_to_download and not (local_paths - drive_paths):
-        log("\nCatalogo ja esta sincronizado! Nenhuma alteracao necessaria.")
-        save_products_json(drive_products)
-        return
+    # 3. Remover orfaos PRIMEIRO (Drive e fonte de verdade)
+    if items_to_remove:
+        log("\n[PASSO 1] Removendo imagens que nao existem no Drive...")
+        remove_orphaned_images(drive_paths, local_paths)
 
+    # 4. Baixar imagens novas
     downloaded = 0
     failed = 0
 
     if items_to_download:
-        log(f"\nBaixando {len(items_to_download)} imagens novas...")
+        log(f"\n[PASSO 2] Baixando {len(items_to_download)} imagens novas...")
         start = time.time()
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = {
-                executor.submit(download_and_save, item, idx): idx
-                for idx, item in enumerate(items_to_download)
+                executor.submit(download_and_save, item): item
+                for item in items_to_download
             }
             for i, future in enumerate(as_completed(futures)):
-                res = future.result()
-                if res:
+                ok = future.result()
+                if ok:
                     downloaded += 1
                 else:
                     failed += 1
-                if (i + 1) % 20 == 0 or (i + 1) == len(items_to_download):
+                if (i + 1) % 25 == 0 or (i + 1) == len(items_to_download):
                     elapsed = time.time() - start
                     speed = (i + 1) / elapsed if elapsed > 0 else 0
                     log(
@@ -226,29 +347,28 @@ def main():
                     )
 
         log(f"   Concluido: {downloaded} baixadas, {failed} com falha")
+    else:
+        log("\n[PASSO 2] Nenhuma imagem nova para baixar.")
 
-    log("\nVerificando imagens removidas do Drive...")
-    removed = remove_orphaned_images(drive_paths, get_local_image_paths())
-
-    log("\nSalvando catalogo atualizado...")
-    valid_products = [
-        p for p in drive_products
-        if p.get("image") and os.path.exists("public" + p["image"])
-    ]
-    save_products_json(valid_products)
+    # 5. Salvar JSON com itens que tem imagem local
+    log("\n[PASSO 3] Salvando catalogo atualizado...")
+    valid = [p for p in drive_items if os.path.exists("public" + p["image"])]
+    save_products_json(valid)
 
     log("")
     log("=" * 60)
-    log(f"  Sincronizacao completa!")
-    log(f"     Imagens novas: {downloaded}")
-    log(f"     Imagens removidas: {removed}")
-    log(f"     Total no catalogo: {len(valid_products)}")
+    log("  Sincronizacao concluida!")
+    log(f"     Imagens removidas:  {len(items_to_remove)}")
+    log(f"     Imagens baixadas:   {downloaded}")
+    log(f"     Falhas de download: {failed}")
+    log(f"     Total no catalogo:  {len(valid)}")
     log("=" * 60)
     log("")
-    log("Agora execute 'npm run build' para aplicar as mudancas no site.")
+    log("Proximo passo: execute 'npm run build' para publicar.")
 
 
 if __name__ == "__main__":
     main()
+
 
 
