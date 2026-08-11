@@ -62,22 +62,9 @@ function App() {
   });
 
 
-  // Database local state - sempre começa com o JSON estático (fonte verdadeira)
-  const [productsList, setProductsList] = useState(() => {
-    try {
-      const cached = localStorage.getItem('belcolore_products');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        // Só usa o cache se tiver dados válidos e for mais recente que o JSON estático
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-      return productsData;
-    } catch (e) {
-      return productsData;
-    }
-  });
+  // Database local state - products.json estático é SEMPRE a fonte de verdade
+  // O localStorage NÃO sobrescreve o JSON local (que tem os caminhos corretos das imagens)
+  const [productsList, setProductsList] = useState(productsData);
 
   // Função de sincronização com o Google Drive (usada no boot e no botão manual)
   const syncWithDrive = useCallback(async (isManual = false) => {
@@ -110,21 +97,17 @@ function App() {
       const data = await res.json();
 
       if (Array.isArray(data) && data.length > 0) {
-        const prevCount = productsList.length;
-        setProductsList(data);
-        // Limpa o cache antigo e salva o novo
-        localStorage.removeItem('belcolore_products');
-        localStorage.setItem('belcolore_products', JSON.stringify(data));
+        // NÃO sobrescreve productsList com dados do Drive — o products.json local
+        // tem os caminhos corretos das imagens. O Drive retorna URLs do Google
+        // que não funcionam como <img src> no browser.
         const now = new Date().toLocaleString('pt-BR');
         localStorage.setItem('belcolore_last_sync', now);
         setLastSyncTime(now);
         setNeedsReauth(false);
-        const diff = data.length - prevCount;
         if (isManual) {
-          const diffMsg = diff > 0 ? ` (+${diff} fotos)` : diff < 0 ? ` (${diff} fotos removidas)` : ' (sem alterações)';
           setSyncStatus('success');
-          setSyncMessage(`Catálogo atualizado com sucesso! ${data.length} itens${diffMsg}`);
-          setTimeout(() => setSyncStatus('idle'), 5000);
+          setSyncMessage(`Drive consultado com sucesso! ${data.length} itens no Drive. Para atualizar as imagens, execute sync_catalog.py.`);
+          setTimeout(() => setSyncStatus('idle'), 7000);
         }
       } else if (isManual) {
         setSyncStatus('error');
@@ -150,11 +133,9 @@ function App() {
   }, [productsList.length]);
 
 
-  // Sincronização automática ao carregar a página (silenciosa)
-  useEffect(() => {
-    syncWithDrive(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Auto-sync desabilitado no boot: o products.json local é a fonte de verdade.
+  // Para sincronizar com o Drive, use o botão manual ou execute sync_catalog.py.
+  // useEffect(() => { syncWithDrive(false); }, []);
 
   // Admin View & Password Protection State
   const [isAdminMode, setIsAdminMode] = useState(false);
