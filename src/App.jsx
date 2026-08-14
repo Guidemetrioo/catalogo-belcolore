@@ -51,7 +51,7 @@ function App() {
   };
 
   // URL do Google Apps Script publicado como Web App
-  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbw9KiziWx2Yrq8XjrowpZgfR6iDkbrWTlj6G9V5zYXw8ewyclFTfm-yI_5r2unaAIs0Kw/exec";
+  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbznSFNeB2Bghs-mpM3ET_HnnC46PCkA3fgMqVrbF96xnA7oFCwmXiKrR38KM4M1i7mU/exec";
 
   // Sync status state
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
@@ -61,81 +61,112 @@ function App() {
     return localStorage.getItem('belcolore_last_sync') || null;
   });
 
-
-  // Database local state - products.json estático é SEMPRE a fonte de verdade
-  // O localStorage NÃO sobrescreve o JSON local (que tem os caminhos corretos das imagens)
+  // Database local state - productsData local é a base padrão
   const [productsList, setProductsList] = useState(productsData);
 
-  // Função de sincronização com o Google Drive (usada no boot e no botão manual)
+  // Função de sincronização com o Google Drive (espelhamento automático em tempo real)
   const syncWithDrive = useCallback(async (isManual = false) => {
     if (isManual) {
       setSyncStatus('loading');
-      setSyncMessage('Conectando ao Google Drive...');
+      setSyncMessage('Conectando ao Google Drive (pode levar de 20 a 40 segundos)...');
     }
-    try {
-      // Adiciona timestamp para evitar cache do navegador
-      const url = `${GOOGLE_DRIVE_API_URL}?t=${Date.now()}`;
-      const res = await fetch(url);
 
-      // Verifica se o script retornou HTML (página de login do Google)
-      // em vez de JSON — isso significa que o script não está publicado como público
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // Timeout de 60s para dar tempo ao Google Apps Script
+
+    try {
+      const url = `${GOOGLE_DRIVE_API_URL}?t=${Date.now()}`;
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('text/html')) {
         const html = await res.text();
         if (html.includes('accounts.google') || html.includes('signin') || html.includes('login')) {
           if (isManual) {
             setSyncStatus('error');
-            setSyncMessage('⚠️ O Google Apps Script precisa ser republicado como público. Veja as instruções abaixo.');
+            setSyncMessage('⚠️ O Google Apps Script precisa ser republicado como público.');
             setNeedsReauth(true);
-            setTimeout(() => setSyncStatus('idle'), 15000);
+            setTimeout(() => setSyncStatus('idle'), 10000);
           }
           return;
         }
       }
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const driveItems = await res.json();
 
-      if (Array.isArray(data) && data.length > 0) {
-        // NÃO sobrescreve productsList com dados do Drive — o products.json local
-        // tem os caminhos corretos das imagens. O Drive retorna URLs do Google
-        // que não funcionam como <img src> no browser.
+      if (Array.isArray(driveItems) && driveItems.length > 0) {
+        // Mapear produtos locais para rápida consulta por nome
+        const localByName = new Map();
+        productsData.forEach(p => {
+          if (p.name && p.image) {
+            localByName.set(p.name.toLowerCase().trim(), p.image);
+          }
+        });
+
+        // Mesclar dados do Drive: se já tem imagem WebP local usa a local, senão usa a foto do Drive em tempo real
+        const mergedProducts = driveItems.map((item, idx) => {
+          const nameKey = (item.name || '').toLowerCase().trim();
+          const localImg = localByName.get(nameKey);
+          return {
+            id: item.id || String(idx + 1),
+            name: item.name,
+            category: item.category,
+            image: localImg || item.image || item.url || ''
+          };
+        }).filter(p => p.name && p.category && p.image);
+
+        if (mergedProducts.length > 0) {
+          setProductsList(mergedProducts);
+        }
+
         const now = new Date().toLocaleString('pt-BR');
         localStorage.setItem('belcolore_last_sync', now);
         setLastSyncTime(now);
         setNeedsReauth(false);
         if (isManual) {
           setSyncStatus('success');
-          setSyncMessage(`Drive consultado com sucesso! ${data.length} itens no Drive. Para atualizar as imagens, execute sync_catalog.py.`);
+          setSyncMessage(`Sincronizado com sucesso! ${mergedProducts.length} itens espelhados.`);
           setTimeout(() => setSyncStatus('idle'), 7000);
         }
       } else if (isManual) {
         setSyncStatus('error');
-        setSyncMessage('O Google Drive retornou uma lista vazia. Verifique o script e a pasta.');
+        setSyncMessage('O Google Drive retornou uma lista vazia.');
         setTimeout(() => setSyncStatus('idle'), 7000);
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error('Falha ao sincronizar com Google Drive:', err);
       if (isManual) {
-        // "Failed to fetch" = problema de CORS ou script não acessível
-        const isCors = err.message === 'Failed to fetch' || err.name === 'TypeError';
-        if (isCors) {
+        if (err.name === 'AbortError') {
           setSyncStatus('error');
-          setSyncMessage('⚠️ O Google Apps Script precisa ser republicado como público. Veja as instruções abaixo.');
-          setNeedsReauth(true);
+          setSyncMessage('⏱️ O Google Apps Script demorou mais de 60s. O catálogo local com 2.946 fotos continua totalmente ativo.');
         } else {
-          setSyncStatus('error');
-          setSyncMessage(`Falha na sincronização: ${err.message}. Verifique sua conexão.`);
+          const isCors = err.message === 'Failed to fetch' || err.name === 'TypeError';
+          if (isCors) {
+            setSyncStatus('error');
+            setSyncMessage('⚠️ O Google Apps Script precisa ser republicado como público.');
+            setNeedsReauth(true);
+          } else {
+            setSyncStatus('error');
+            setSyncMessage(`Falha na sincronização: ${err.message}.`);
+          }
         }
-        setTimeout(() => setSyncStatus('idle'), 15000);
+        setTimeout(() => setSyncStatus('idle'), 8000);
       }
     }
-  }, [productsList.length]);
+  }, []);
 
+  // Sincronização automática no boot e a cada 15 minutos (900.000 ms)
+  useEffect(() => {
+    syncWithDrive(false);
+    const interval = setInterval(() => {
+      syncWithDrive(false);
+    }, 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [syncWithDrive]);
 
-  // Auto-sync desabilitado no boot: o products.json local é a fonte de verdade.
-  // Para sincronizar com o Drive, use o botão manual ou execute sync_catalog.py.
-  // useEffect(() => { syncWithDrive(false); }, []);
 
   // Admin View & Password Protection State
   const [isAdminMode, setIsAdminMode] = useState(false);
