@@ -51,7 +51,7 @@ function App() {
   };
 
   // URL do Google Apps Script publicado como Web App
-  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbznSFNeB2Bghs-mpM3ET_HnnC46PCkA3fgMqVrbF96xnA7oFCwmXiKrR38KM4M1i7mU/exec";
+  const GOOGLE_DRIVE_API_URL = "https://script.google.com/macros/s/AKfycbx4V3LbXg-EgPFXTTuLdBTWqA2AI2oDhqjXA6Mw5XpWr-ByXLMtwNhS56Tkb04Klky6qw/exec";
 
   // Sync status state
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'

@@ -29,7 +29,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # ─── Configuracoes ────────────────────────────────────────────────────────────
 GOOGLE_APPS_SCRIPT_URL = (
     "https://script.google.com/macros/s/"
-    "AKfycbznSFNeB2Bghs-mpM3ET_HnnC46PCkA3fgMqVrbF96xnA7oFCwmXiKrR38KM4M1i7mU"
+    "AKfycbx4V3LbXg-EgPFXTTuLdBTWqA2AI2oDhqjXA6Mw5XpWr-ByXLMtwNhS56Tkb04Klky6qw"
     "/exec"
 )
 CATALOG_DIR   = "public/assets/catalog"
