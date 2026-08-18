@@ -1,4 +1,4 @@
-import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, RefreshCw, ExternalLink, ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader, ArrowUpAZ, ArrowDownAZ, ImageIcon, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Grid, ArrowUp, Settings, RefreshCw, ExternalLink, ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader, ArrowUpAZ, ArrowDownAZ, ImageIcon, Download, ChevronDown, ChevronUp, Send, Wrench, Clock } from 'lucide-react';
 import productsData from './data/products.json';
 import categoryCoversData from './data/category_covers.json';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -61,6 +61,41 @@ function App() {
     return localStorage.getItem('belcolore_last_sync') || null;
   });
 
+  // State for manual integration request
+  const [manualSyncRequest, setManualSyncRequest] = useState(() => {
+    try {
+      const saved = localStorage.getItem('belcolore_manual_sync_request');
+      if (saved) return JSON.parse(saved);
+    } catch (e) { /* ignore */ }
+    return null;
+  });
+
+  const handleRequestManualSync = () => {
+    const now = new Date().toLocaleString('pt-BR');
+    const newRequest = {
+      requested: true,
+      timestamp: now,
+      status: 'pending'
+    };
+    try {
+      localStorage.setItem('belcolore_manual_sync_request', JSON.stringify(newRequest));
+    } catch (e) { /* ignore */ }
+    setManualSyncRequest(newRequest);
+    setSyncStatus('success');
+    setSyncMessage(`📩 Solicitação de Integração Manual registrada com sucesso em ${now}! A equipe foi notificada.`);
+    setTimeout(() => setSyncStatus('idle'), 8000);
+  };
+
+  const handleResolveManualSyncRequest = () => {
+    try {
+      localStorage.removeItem('belcolore_manual_sync_request');
+    } catch (e) { /* ignore */ }
+    setManualSyncRequest(null);
+    setSyncStatus('success');
+    setSyncMessage('✅ Solicitação de Integração Manual marcada como concluída.');
+    setTimeout(() => setSyncStatus('idle'), 5000);
+  };
+
   // Database local state - productsData local é a base padrão
   const [productsList, setProductsList] = useState(productsData);
 
@@ -97,23 +132,41 @@ function App() {
       const driveItems = await res.json();
 
       if (Array.isArray(driveItems) && driveItems.length > 0) {
-        // Mapear produtos locais para rápida consulta por nome
+        // Mapear produtos locais por ID do Drive (driveId) e por Nome para consulta ultrarrápida
+        const localByDriveId = new Map();
         const localByName = new Map();
         productsData.forEach(p => {
+          if (p.driveId && p.image) {
+            localByDriveId.set(p.driveId, p.image);
+          }
           if (p.name && p.image) {
             localByName.set(p.name.toLowerCase().trim(), p.image);
           }
         });
 
-        // Mesclar dados do Drive: se já tem imagem WebP local usa a local, senão usa a foto do Drive em tempo real
+        // Extrair ID do Drive a partir do item ou URL
+        const extractFid = (item) => {
+          if (item.driveId) return item.driveId;
+          const raw = item.image || item.url || item.driveUrl || '';
+          const m = raw.match(/googleusercontent\.com\/d\/([A-Za-z0-9_\-]+)|[?&]id=([A-Za-z0-9_\-]+)|\/file\/d\/([A-Za-z0-9_\-]+)/);
+          return m ? (m[1] || m[2] || m[3]) : null;
+        };
+
+        // Espelhar diretamente os dados do Drive (fonte de verdade)
         const mergedProducts = driveItems.map((item, idx) => {
+          const fid = extractFid(item);
           const nameKey = (item.name || '').toLowerCase().trim();
-          const localImg = localByName.get(nameKey);
+          // Prioridade 1: Buscar por ID do Drive (permite renomeação sem perder foto WebP local)
+          // Prioridade 2: Buscar por Nome exato
+          // Prioridade 3: Foto remota do Drive
+          const localImg = (fid ? localByDriveId.get(fid) : null) || localByName.get(nameKey);
+
           return {
             id: item.id || String(idx + 1),
             name: item.name,
             category: item.category,
-            image: localImg || item.image || item.url || ''
+            driveId: fid || item.id,
+            image: localImg || item.image || item.url || item.driveUrl || ''
           };
         }).filter(p => p.name && p.category && p.image);
 
@@ -709,6 +762,7 @@ function App() {
                     <path d="M73.4 26.5l-12.6-21.8c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
                   </svg>
                   <span>Integração Drive</span>
+                  {manualSyncRequest?.status === 'pending' && <span className="admin-tab-dot pending" title="Solicitação de integração manual pendente!" />}
                   {syncStatus === 'loading' && <Loader size={13} className="spin-icon" style={{marginLeft:'2px'}} />}
                   {syncStatus === 'error' && <span className="admin-tab-dot error" />}
                 </button>
@@ -891,6 +945,33 @@ function App() {
                   Quando você adiciona ou remove fotos da pasta do Drive, clique em <strong>Sincronizar Fotos</strong> para atualizar o catálogo instantaneamente. As alterações serão aplicadas sem precisar recarregar a página.
                 </p>
 
+                {/* Pending Manual Sync Request Alert Card */}
+                {manualSyncRequest?.status === 'pending' && (
+                  <div className="manual-sync-request-card">
+                    <div className="manual-sync-request-header">
+                      <div className="manual-sync-icon-badge">
+                        <Send size={20} />
+                      </div>
+                      <div>
+                        <h4 className="manual-sync-card-title">⚠️ Solicitação de Integração Manual Pendente</h4>
+                        <p className="manual-sync-card-sub">
+                          Registrada em: <strong>{manualSyncRequest.timestamp}</strong>
+                        </p>
+                      </div>
+                    </div>
+                    <p className="manual-sync-card-desc">
+                      Uma solicitação de atualização manual do Drive foi enviada. Isso notifica a equipe para executar o script de sincronização e espelhamento completo no servidor.
+                    </p>
+                    <button
+                      className="resolve-request-btn"
+                      onClick={handleResolveManualSyncRequest}
+                    >
+                      <CheckCircle size={16} />
+                      <span>Marcar Integração Manual como Concluída</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Sync status feedback */}
                 {syncStatus !== 'idle' && (
                   <div className={`sync-status-banner ${syncStatus}`}>
@@ -909,6 +990,15 @@ function App() {
                   >
                     <RefreshCw size={18} className={syncStatus === 'loading' ? 'spin-icon' : ''} />
                     <span>{syncStatus === 'loading' ? 'Sincronizando...' : 'Sincronizar Fotos'}</span>
+                  </button>
+
+                  <button
+                    className={`request-manual-sync-btn ${manualSyncRequest?.status === 'pending' ? 'requested' : ''}`}
+                    onClick={handleRequestManualSync}
+                    title="Solicitar que a equipe realize uma atualização/integração manual completa"
+                  >
+                    <Send size={16} />
+                    <span>{manualSyncRequest?.status === 'pending' ? 'Solicitação Pendente' : 'Solicitar Integração Manual'}</span>
                   </button>
 
                   <a
