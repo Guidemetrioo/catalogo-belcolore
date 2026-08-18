@@ -11,9 +11,9 @@ echo e sincronizar o Google Drive a cada 15 minutos automaticamente.
 echo.
 
 set SCRIPT_DIR=%~dp0
-set PYTHON_CMD=python "%SCRIPT_DIR%auto_sync.py" --once
+set SILENT_CMD=wscript.exe "%SCRIPT_DIR%run_silent.vbs"
 
-schtasks /create /tn "BelColore_Drive_Sync" /tr "%PYTHON_CMD%" /sc minute /mo 15 /f
+schtasks /create /tn "BelColore_Drive_Sync" /tr "%SILENT_CMD%" /sc minute /mo 15 /f
 
 if %ERRORLEVEL% EQU 0 (
     echo.
